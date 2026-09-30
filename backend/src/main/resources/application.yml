@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: propfolio-api
+  profiles:
+    default: local
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+server:
+  port: ${SERVER_PORT:8080}
+
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  storage:
+    # Folder where uploaded bills are kept (used from Phase 3). Relative paths resolve from the working directory.
+    local-root: ${APP_STORAGE_LOCAL_ROOT:./storage}
+
+# Added in later phases (values come from environment variables, never committed):
+#   Phase 1: spring.datasource.*, spring.security.oauth2.resourceserver.jwt.jwk-set-uri
+#   Phase 4: app.openai.api-key, app.openai.model
+#   Phase 6: app.google.client-id, app.google.client-secret, app.google.redirect-uri

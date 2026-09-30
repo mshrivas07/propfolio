@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* Design tokens: a quiet, ledger-like palette. Blue marks actions, green paid, amber attention. */
+@theme {
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-ink: #16202a;
+  --color-ink-muted: #56636f;
+  --color-surface: #f5f7f8;
+  --color-panel: #ffffff;
+  --color-line: #d6dde2;
+  --color-action: #1d5c8f;
+  --color-action-strong: #154569;
+  --color-paid: #2f7a4f;
+  --color-attention: #9a6412;
+}
+
+html {
+  color: var(--color-ink);
+  background: var(--color-surface);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-action);
+  outline-offset: 2px;
+}

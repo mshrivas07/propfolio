@@ -1,0 +1,5 @@
+# Local development profile (active by default).
+logging:
+  level:
+    com.propfolio: DEBUG
+    org.springframework.web: INFO
