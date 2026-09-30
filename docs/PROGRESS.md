@@ -63,7 +63,7 @@ Frontend
 - Project name: **Propfolio** (repo `github.com/mshrivas07/propfolio`). Base Java package `com.propfolio`, main class `PropfolioApplication`, API service name `propfolio-api`.
 - Frontend uses React Router v7 (`react-router` package) and Tailwind CSS v4 via the Vite plugin.
 - UI tokens (colours, Public Sans font) live in `frontend/src/index.css` under `@theme`.
-- Backend starts with only `web` + `validation` so it runs without a database or secrets.
+- Backend starts with only `webmvc` + `validation` so it runs without a database or secrets.
 
 ### Deferred
 
@@ -75,5 +75,29 @@ Frontend
 
 ### Open items before Phase 1
 
-- Confirm Spring Boot line: stay on 3.5.x or move to 4.x (see DECISIONS.md).
 - Create the Supabase project and collect URL, anon key, JWKS URI and DB connection string.
+
+## Phase 0.1 — Spring Boot 4 upgrade ✅
+
+Branch: `release/1.0.1`
+
+### Files modified
+
+- `backend/pom.xml` — parent 3.5.6 → 4.1.1; `spring-boot-starter-web` → `spring-boot-starter-webmvc`; added `spring-boot-starter-webmvc-test`
+- `backend/src/test/java/com/propfolio/common/web/HealthControllerTest.java` — `AutoConfigureMockMvc` import moved to its Boot 4 package
+- `README.md` — stack line
+- `docs/DECISIONS.md` — version decision and Boot 4 conventions
+- `docs/PROGRESS.md` — this entry
+
+### Files created
+
+- None
+
+### Unchanged (verified compatible)
+
+- `PropfolioApplication`, `HealthController`, `CorsProperties`, `WebConfig`, `PropfolioApplicationTests`, both YAML files
+- Frontend (no backend-version dependency)
+
+### Verification
+
+- Run `mvn test` locally; both tests should pass. (Not compiled in the scaffolding environment: no Maven Central access there.)

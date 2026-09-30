@@ -7,8 +7,8 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <!-- Bump to the latest 3.5.x patch before Phase 1 -->
-        <version>3.5.6</version>
+        <!-- Spring Boot 4.1.x line (OSS support to mid-2027). Bump patch versions as they release. -->
+        <version>4.1.1</version>
         <relativePath/>
     </parent>
 
@@ -24,12 +24,12 @@
 
     <!--
       Phase 0 keeps dependencies minimal so the app starts with no database or secrets.
-      Phase 1 adds: data-jpa, postgresql, flyway (optional), oauth2-resource-server.
+      Phase 1 adds: data-jpa, postgresql, security + oauth2-resource-server.
     -->
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -39,6 +39,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Boot 4 splits test support per module; MockMvc auto-config lives here -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

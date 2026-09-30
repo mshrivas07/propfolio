@@ -5,7 +5,7 @@ invoices, and track what has been paid.
 
 ```
 propfolio/
-├── backend/               Spring Boot 3 API (Java 21, Maven)
+├── backend/               Spring Boot 4.1 API (Java 21, Maven)
 ├── frontend/              React + Vite single-page app
 ├── supabase/migrations/   SQL migrations for Supabase Postgres
 └── docs/                  DECISIONS.md (what we decided) and PROGRESS.md (what's built)

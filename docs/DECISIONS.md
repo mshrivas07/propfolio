@@ -7,7 +7,7 @@ Recorded in Phase 0. Change a decision here first, then in code.
 | Area | Decision |
 |---|---|
 | Frontend | React + Vite + React Router + Tailwind CSS + Zustand. Plain SPA; all features go through the REST API so a mobile client can be added later. |
-| Backend | Spring Boot 3 (3.5.x), Java 21, Maven. Modular monolith, one deployable. |
+| Backend | Spring Boot 4.1.x (Spring Framework 7, Spring Security 7, Jackson 3), Java 21, Maven. Modular monolith, one deployable. |
 | Backend packages | `security`, `rentals`, `documents`, `extraction`, `billing`, `notifications`, `payments`, `common` |
 | Database | Supabase Postgres |
 | Auth | Supabase Auth issues the JWT; Spring Boot validates it as an OAuth2 resource server (Supabase JWKS). No RLS in MVP1. |
@@ -77,6 +77,15 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - Google app verification for Gmail scopes (required before other landlords can use drafts)
 - Row Level Security policies as defense in depth
 
-## Open items
+## Spring Boot version (decided 2026-09-30)
 
-- Spring Boot version line: 3.5.x is the last 3.x line. Confirm before Phase 1 whether to stay on 3.5.x or move to 4.x.
+- Moved from 3.5.x to **4.1.x** before any business code was written.
+- Why: Spring Boot 3.5 open-source support ended 2026-06-30, so it no longer gets free security patches.
+  4.0.x OSS support ends 2026-12-31; 4.1.x is supported until mid-2027.
+- Boot 4 conventions to follow from here on:
+  - Starters are per module: `spring-boot-starter-webmvc` (not `-web`), and matching `-test` starters
+    (e.g. `spring-boot-starter-webmvc-test`, `spring-boot-starter-data-jpa-test`).
+  - Test-slice annotations live in module packages, e.g.
+    `org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc` / `WebMvcTest`.
+  - JSON uses Jackson 3 (`tools.jackson.*` packages) when we need to touch it directly.
+  - Spring Security 7: lambda DSL only.
