@@ -101,3 +101,83 @@ Branch: `release/1.0.1`
 ### Verification
 
 - Run `mvn test` locally; both tests should pass. (Not compiled in the scaffolding environment: no Maven Central access there.)
+
+## Phase 1 — Schema and auth ✅
+
+Branch: `release/1.0.1`
+
+### Files created
+
+Database
+- `supabase/migrations/202610010001_initial_schema.sql`
+
+Backend — main
+- `backend/src/main/java/com/propfolio/common/persistence/TimestampedEntity.java`
+- `backend/src/main/java/com/propfolio/common/persistence/LandlordOwnedEntity.java`
+- `backend/src/main/java/com/propfolio/security/Landlord.java`, `LandlordRepository.java`
+- `backend/src/main/java/com/propfolio/security/SupabaseProperties.java`
+- `backend/src/main/java/com/propfolio/security/SecurityConfig.java`
+- `backend/src/main/java/com/propfolio/security/LandlordProvisioner.java`
+- `backend/src/main/java/com/propfolio/security/CurrentLandlord.java`
+- `backend/src/main/java/com/propfolio/security/MeController.java`
+- `backend/src/main/java/com/propfolio/rentals/` — `Property`, `Unit`, `Tenant`, `Lease`, `UtilityAccount`, `SplitRule` (+ a `*Repository` for each), `UtilityType`, `ShareType`
+- `backend/src/main/java/com/propfolio/documents/` — `Bill`, `BillRepository`, `BillStatus`
+- `backend/src/main/java/com/propfolio/billing/` — `Invoice`, `InvoiceLine`, `InvoiceNumberSequence` (+ a `*Repository` for each), `InvoiceStatus`
+- `backend/src/main/java/com/propfolio/payments/` — `Payment`, `PaymentRepository`
+
+Backend — test
+- `backend/src/test/resources/application-test.yml`
+- `backend/src/test/java/com/propfolio/security/MeControllerSecurityTest.java`
+- `backend/src/test/java/com/propfolio/persistence/RepositorySmokeTest.java`
+
+Frontend
+- `frontend/src/lib/supabase.js`
+- `frontend/src/components/RequireAuth.jsx`
+
+### Files modified
+
+- `backend/pom.xml` — data-jpa, postgresql, security, security-oauth2-resource-server; test: webmvc-test, security-test, h2
+- `backend/src/main/resources/application.yml` — datasource, JPA (validate, `propfolio` schema), Supabase settings, `.env` import
+- `backend/src/main/resources/application-local.yml` — security log level
+- `backend/.env.example` — JDBC URL format for the Supabase session pooler
+- `backend/src/test/java/com/propfolio/PropfolioApplicationTests.java`, `common/web/HealthControllerTest.java` — run with `test` profile
+- `frontend/package.json`, `frontend/package-lock.json` — `@supabase/supabase-js`
+- `frontend/.env.example`
+- `frontend/src/App.jsx` — auth init + route guard
+- `frontend/src/stores/authStore.js` — real Supabase session
+- `frontend/src/lib/api.js` — Bearer token, `ApiError`, `getMe`, sign-out on 401
+- `frontend/src/layouts/AppLayout.jsx` — user email + sign out
+- `frontend/src/pages/LoginPage.jsx` — sign in / create account
+- `frontend/src/pages/DashboardPage.jsx` — "Signed in as …" from `/api/me`
+- `supabase/migrations/README.md` — how to apply migrations
+- `docs/DECISIONS.md` — database decisions
+- `docs/PROGRESS.md` — this entry
+
+### Files deleted
+
+- `backend/src/main/java/com/propfolio/common/config/WebConfig.java` — CORS now lives in `SecurityConfig`
+
+### What works
+
+- `GET /api/health` public; every other `/api/**` call needs a valid Supabase access token (401 otherwise).
+- `GET /api/me` creates the landlord row on first call and returns `{ id, email, displayName, createdAt }`.
+- Sign up, sign in, sign out, protected routes, dashboard shows the signed-in email.
+- Migration verified on PostgreSQL 16: double-billing exclusion (overlap rejected, adjacent allowed,
+  voided lines ignored), split-rule limits, verified-bill completeness, `updated_at` triggers.
+- Frontend production build verified.
+
+### Not verified in the scaffolding environment
+
+- `mvn test` (no Maven Central access there): run locally.
+- Hibernate `validate` against the real Supabase schema: checked on first `mvn spring-boot:run`.
+
+### Deferred
+
+- Business services and CRUD APIs → Phase 2+
+- Global API error format → Phase 8
+- Testcontainers (real Postgres in tests) → Phase 8
+- RLS → MVP2
+
+### Supabase migrations applied
+
+- [ ] `202610010001_initial_schema.sql`

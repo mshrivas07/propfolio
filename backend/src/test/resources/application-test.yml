@@ -1,0 +1,15 @@
+# Test profile: in-memory H2 in PostgreSQL mode, schema generated from the entities.
+# The real schema (constraints, exclusion rules) is covered by supabase/migrations.
+spring:
+  datasource:
+    url: jdbc:h2:mem:propfolio;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;INIT=CREATE SCHEMA IF NOT EXISTS propfolio
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+app:
+  supabase:
+    url: https://test-project.supabase.co
+    jwks-uri: https://test-project.supabase.co/auth/v1/.well-known/jwks.json
