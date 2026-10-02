@@ -31,8 +31,8 @@ cd propfolio
 
 ```bash
 cd backend
-cp .env.example .env        # fill in values when later phases need them
-mvn spring-boot:run -Dspring-boot.run.profiles=local
+cp .env.example .env        # fill in Supabase values
+mvn spring-boot:run
 ```
 
 Check it: <http://localhost:8080/api/health>
@@ -46,7 +46,19 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:5173>. The dashboard shows whether it can reach the backend.
+Open <http://localhost:5173>, sign in, and the dashboard shows "Signed in as …".
+
+### Environment variables
+
+- **Backend:** `backend/.env` is loaded automatically when the app starts from the `backend/` folder.
+  In IntelliJ or VS Code, set the run configuration's working directory to `backend/`.
+  Real environment variables still work and take priority over `.env`.
+- **Frontend:** Vite reads `frontend/.env` automatically. Restart `npm run dev` after changing it.
+
+### Database
+
+Apply the SQL files in `supabase/migrations/` in the Supabase SQL Editor
+(step-by-step in [supabase/migrations/README.md](supabase/migrations/README.md)).
 
 ## Build status
 

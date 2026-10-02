@@ -10,7 +10,7 @@ Recorded in Phase 0. Change a decision here first, then in code.
 | Backend | Spring Boot 4.1.x (Spring Framework 7, Spring Security 7, Jackson 3), Java 21, Maven. Modular monolith, one deployable. |
 | Backend packages | `security`, `rentals`, `documents`, `extraction`, `billing`, `notifications`, `payments`, `common` |
 | Database | Supabase Postgres |
-| Auth | Supabase Auth issues the JWT; Spring Boot validates it as an OAuth2 resource server (Supabase JWKS). No RLS in MVP1. |
+| Auth | Supabase Auth issues the JWT; Spring Boot validates it as an OAuth2 resource server against the Supabase JWKS (ES256/RS256), checking expiry, issuer (`<SUPABASE_URL>/auth/v1`) and audience (`authenticated`). No RLS in MVP1. |
 | AI extraction | OpenAI API, called only from the backend (key never reaches the browser) |
 | Environment | Local only for MVP1. Docker Compose in Phase 8. |
 
@@ -19,6 +19,21 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - Every table carries `landlord_id` (the Supabase auth user id).
 - Every query is scoped to the current user in the service layer.
 - Supabase email signup creates new landlords.
+
+## Database (decided in Phase 1)
+
+- All app tables live in the `propfolio` schema, which Supabase's Data API does not expose.
+  `anon` and `authenticated` have no access. Only the backend touches the tables.
+- Supabase migrations (`supabase/migrations`) own the schema. Hibernate runs with `ddl-auto: validate`.
+- Statuses and types are `text` + `CHECK` constraints, not Postgres enums, so values are easy to add.
+- Entities reference other tables by id (UUID fields), not JPA relationships.
+- `landlord.id` = Supabase auth user id; the row is created on the user's first API call.
+- Double-billing protection is a Postgres `EXCLUDE` constraint on `invoice_line`
+  (same bill + unit, overlapping inclusive date range, not void). Uses the `btree_gist` extension.
+- A bill can only become `VERIFIED` when utility account, period, amount and verified_at are set (CHECK).
+- Tests use H2 in PostgreSQL mode with the schema generated from entities. Constraint behaviour is
+  verified against real Postgres when migrations change. Testcontainers can replace H2 later.
+- Local config: `backend/.env` is loaded by `spring.config.import: optional:file:.env[.properties]`.
 
 ## Rentals and split rules
 

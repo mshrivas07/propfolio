@@ -3,10 +3,30 @@ spring:
     name: propfolio-api
   profiles:
     default: local
+  # Loads backend/.env (KEY=value lines) when the app runs from the backend/ folder.
+  # Values are then available to the ${...} placeholders below.
+  config:
+    import: optional:file:.env[.properties]
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Schema is owned by supabase/migrations; Hibernate only checks entities match it.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: propfolio
 
 server:
   port: ${SERVER_PORT:8080}
@@ -17,8 +37,10 @@ app:
   storage:
     # Folder where uploaded bills are kept (used from Phase 3). Relative paths resolve from the working directory.
     local-root: ${APP_STORAGE_LOCAL_ROOT:./storage}
+  supabase:
+    url: ${SUPABASE_URL}
+    jwks-uri: ${SUPABASE_JWKS_URI:${SUPABASE_URL}/auth/v1/.well-known/jwks.json}
 
 # Added in later phases (values come from environment variables, never committed):
-#   Phase 1: spring.datasource.*, spring.security.oauth2.resourceserver.jwt.jwk-set-uri
 #   Phase 4: app.openai.api-key, app.openai.model
 #   Phase 6: app.google.client-id, app.google.client-secret, app.google.redirect-uri
