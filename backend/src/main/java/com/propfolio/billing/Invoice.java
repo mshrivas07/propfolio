@@ -45,8 +45,8 @@ public class Invoice extends LandlordOwnedEntity {
     @Column(name = "due_date")
     private LocalDate dueDate;
 
-    @Column(name = "gmail_draft_id")
-    private String gmailDraftId;
+    @Column(name = "email_draft_id")
+    private String emailDraftId;
 
     @Column(name = "email_drafted_at")
     private Instant emailDraftedAt;
@@ -134,12 +134,12 @@ public class Invoice extends LandlordOwnedEntity {
         this.dueDate = dueDate;
     }
 
-    public String getGmailDraftId() {
-        return gmailDraftId;
+    public String getEmailDraftId() {
+        return emailDraftId;
     }
 
-    public void setGmailDraftId(String gmailDraftId) {
-        this.gmailDraftId = gmailDraftId;
+    public void setEmailDraftId(String emailDraftId) {
+        this.emailDraftId = emailDraftId;
     }
 
     public Instant getEmailDraftedAt() {

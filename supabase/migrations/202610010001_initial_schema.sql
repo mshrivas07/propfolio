@@ -193,7 +193,7 @@ create table propfolio.invoice (
   status           text not null default 'DRAFT',
   total_amount     numeric(12, 2) not null default 0,
   due_date         date,
-  gmail_draft_id   text,
+  email_draft_id   text,
   email_drafted_at timestamptz,
   paid_at          timestamptz,
   voided_at        timestamptz,
