@@ -51,6 +51,36 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - Each invoice line is rounded to the cent.
 - Multi-month bills (e.g. quarterly water) are spread across monthly auto-drafts by day overlap.
 
+## Rental setup (decided in Phase 2)
+
+- One active lease per unit at a time: leases on the same unit never overlap (inclusive dates;
+  a null end date means ongoing). Enforced in `LeaseService` and by the `lease_no_overlap`
+  exclusion constraint. Back-to-back leases (one ends Jun 30, next starts Jul 1) are fine.
+- Roommates sharing a unit are one tenant record with several email addresses.
+- Tenant emails are trimmed, lower-cased and de-duplicated (first-entered order kept); at least one, at most 10.
+- Split rules: PERCENT values on one utility account add up to at most 100 (the landlord pays the rest).
+  FLAT rules may sit alongside PERCENT rules on the same account and are not counted in that total.
+  FLAT amounts have at most 2 decimals; percentages at most 4.
+- A split rule's unit and utility account must be on the same property.
+- Property and unit names are unique (case-insensitive) per landlord / per property.
+- Deleting is blocked (409) while other records depend on the row:
+  property → units or utility accounts; unit → leases or invoices; tenant → leases;
+  lease → invoices (end it instead); utility account → bills.
+  Deleting a unit or utility account deletes its split rules.
+- "Today" for lease status (UPCOMING / CURRENT / ENDED) uses `app.time-zone` (default America/Toronto).
+
+## API conventions (decided in Phase 2)
+
+- REST under `/api`; request/response bodies are Java records; entities never leave the service layer.
+- Every query is scoped to the current landlord. Another landlord's id returns **404**, never 403.
+- Errors are RFC 9457 ProblemDetail (`application/problem+json`):
+  - 400 `Invalid request` with `errors: [{ field, message }]` (list items use `emails[1]` style names)
+  - 404 `Not found`, 409 `Conflict` with a readable `detail`
+  - Database constraint violations that slip past service checks become a generic 409.
+- `PUT /api/split-rules` creates or replaces the rule for a unit + utility account pair.
+- `GET /api/properties/{id}` returns the whole property setup (units with leases, utility accounts,
+  split rules, per-account percent totals) so the detail screen needs one call.
+
 ## Ingestion
 
 - MVP1: UI upload only (PDF / PNG / JPG).
@@ -82,6 +112,11 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - Payments table supports partial payments (amount, date, optional note).
 - `amount pending = invoice total − sum of payments`.
 - **Mark as paid** becomes available when amount pending reaches 0.
+
+## Open questions for later phases
+
+- Phase 5: is a FLAT split amount per month (prorated by days) or per bill? Decide before building the billing engine.
+- Phase 5: editing the dates of a lease that already has invoices is currently allowed; decide whether to lock it.
 
 ## MVP2 backlog
 

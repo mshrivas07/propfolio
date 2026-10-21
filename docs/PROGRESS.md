@@ -180,4 +180,78 @@ Frontend
 
 ### Supabase migrations applied
 
-- [ ] `202610010001_initial_schema.sql`
+- [x] `202610010001_initial_schema.sql`
+
+## Phase 2 — Rental setup ✅
+
+Branch: `feature/1.0.1_1` (merge to `release/1.0.1` after review)
+
+### API
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET / POST | `/api/properties` | List / create properties |
+| GET / PUT / DELETE | `/api/properties/{id}` | Full setup (units, leases, accounts, rules, % totals) / edit / delete |
+| POST | `/api/properties/{id}/units` | Add a unit |
+| PUT / DELETE | `/api/units/{id}` | Rename / delete a unit |
+| GET / POST | `/api/units/{id}/leases` | Unit's leases / add a lease |
+| PUT / DELETE | `/api/leases/{id}` | Change dates (incl. ending) / delete |
+| POST | `/api/properties/{id}/utility-accounts` | Add a utility account |
+| PUT / DELETE | `/api/utility-accounts/{id}` | Edit / delete |
+| PUT | `/api/split-rules` | Create or replace a unit's share of an account |
+| DELETE | `/api/split-rules/{id}` | Remove a rule |
+| GET / POST | `/api/tenants` | List (with leases) / create |
+| GET / PUT / DELETE | `/api/tenants/{id}` | Read / edit / delete |
+
+### Files created
+
+Database
+- `supabase/migrations/202610200001_lease_no_overlap.sql`
+
+Backend — main
+- `common/config/TimeConfig.java`
+- `common/error/` — `NotFoundException`, `ConflictException`, `InvalidRequestException`, `FieldError`, `GlobalExceptionHandler`
+- `rentals/` — `PropertyService`, `UnitService`, `UtilityAccountService`, `SplitRuleService`, `TenantService`, `LeaseService`, `RentalMapper`
+- `rentals/web/` — `PropertyController`, `UnitController`, `LeaseController`, `UtilityAccountController`, `SplitRuleController`, `TenantController`,
+  `PropertyDtos`, `UnitDtos`, `UtilityAccountDtos`, `SplitRuleDtos`, `TenantDtos`, `LeaseDtos`
+
+Backend — test (`backend/src/test/java/com/propfolio/rentals/`)
+- `RentalTestData`, `RentalServiceTestBase`
+- `SplitRuleServiceTest`, `LeaseServiceTest`, `TenantServiceTest`, `DeleteRulesTest`, `RentalControllerTest`
+
+Frontend (`frontend/src/`)
+- `hooks/useApiData.js`, `hooks/useFormSubmit.js`
+- `lib/format.js`
+- `components/ui/` — `Button`, `Field` (TextField, SelectField), `FormProblem`, `States` (Loading/Error/Empty), `Section`, `Panel`
+- `pages/properties/` — `PropertiesPage`, `PropertyForm`, `PropertyDetailPage`, `UnitsSection`, `LeasePanel`, `UtilityAccountsSection`, `SplitRuleGrid`
+- `pages/tenants/` — `TenantsPage`, `TenantForm`
+
+### Files modified
+
+- `backend/src/main/java/com/propfolio/rentals/*Repository.java` (6) — landlord-scoped finders, overlap query, existence/count checks
+- `backend/src/main/java/com/propfolio/documents/BillRepository.java` — `existsByUtilityAccountId` (used by rentals)
+- `backend/src/main/java/com/propfolio/billing/InvoiceRepository.java` — `existsByUnitId`, `existsByLeaseId` (used by rentals)
+- `backend/src/main/resources/application.yml` — `app.time-zone`
+- `frontend/src/lib/api.js` — generic request helper, ProblemDetail parsing (`ApiError.fieldErrors`), rental endpoints
+- `frontend/src/App.jsx` — properties, property detail and tenants routes
+- `frontend/src/layouts/AppLayout.jsx` — Tenants nav item
+- `frontend/src/index.css` — `danger` colour token
+- `supabase/migrations/README.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`
+
+### What was verified in the scaffolding environment
+
+- `202610200001_lease_no_overlap.sql` applied after the initial schema on PostgreSQL 16: overlapping
+  and "ongoing then later" leases rejected, back-to-back leases allowed.
+- Frontend production build.
+- Not verified there: `mvn test` (no Maven Central access) — run locally.
+
+### Deferred
+
+- Lease date edits on invoiced leases → decide in Phase 5
+- FLAT amount meaning (per month vs per bill) → decide in Phase 5
+- Paging on lists → when a landlord has enough rows to need it
+
+### Supabase migrations applied
+
+- [x] `202610010001_initial_schema.sql`
+- [ ] `202610200001_lease_no_overlap.sql`
