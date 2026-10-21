@@ -6,6 +6,9 @@ import ComingSoonPage from './pages/ComingSoonPage'
 import DashboardPage from './pages/DashboardPage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
+import PropertiesPage from './pages/properties/PropertiesPage'
+import PropertyDetailPage from './pages/properties/PropertyDetailPage'
+import TenantsPage from './pages/tenants/TenantsPage'
 import { useAuthStore } from './stores/authStore'
 
 const router = createBrowserRouter([
@@ -18,7 +21,9 @@ const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { index: true, element: <DashboardPage /> },
-          { path: 'properties', element: <ComingSoonPage title="Properties" phase={2} /> },
+          { path: 'properties', element: <PropertiesPage /> },
+          { path: 'properties/:propertyId', element: <PropertyDetailPage /> },
+          { path: 'tenants', element: <TenantsPage /> },
           { path: 'bills', element: <ComingSoonPage title="Bills" phase={3} /> },
           { path: 'invoices', element: <ComingSoonPage title="Invoices" phase={5} /> },
         ],
