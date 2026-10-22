@@ -254,4 +254,4 @@ Frontend (`frontend/src/`)
 ### Supabase migrations applied
 
 - [x] `202610010001_initial_schema.sql`
-- [ ] `202610200001_lease_no_overlap.sql`
+- [x] `202610200001_lease_no_overlap.sql`
