@@ -21,6 +21,7 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 
-# Local bill storage (configurable path; never commit tenant documents)
-storage/
-backend/storage/
+# Local bill storage (configurable path; never commit tenant documents).
+# Anchored with a leading "/" so Java packages named "storage" are not ignored.
+/storage/
+/backend/storage/

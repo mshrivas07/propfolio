@@ -50,6 +50,11 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - The landlord absorbs vacant days.
 - Each invoice line is rounded to the cent.
 - Multi-month bills (e.g. quarterly water) are spread across monthly auto-drafts by day overlap.
+- FLAT split amounts are **per bill**, prorated by the lease's days within the bill period
+  (e.g. $50 internet, tenant present 15 of 30 days → $25). A multi-month bill's flat amount is
+  spread across monthly drafts by day overlap, the same as PERCENT. (Decided in Phase 3.)
+- Lease dates stay editable after invoicing. Existing invoices don't change; DRAFT invoices recalculate.
+  (Decided in Phase 3.)
 
 ## Rental setup (decided in Phase 2)
 
@@ -81,10 +86,26 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - `GET /api/properties/{id}` returns the whole property setup (units with leases, utility accounts,
   split rules, per-account percent totals) so the detail screen needs one call.
 
-## Ingestion
+## Ingestion (decided in Phase 3)
 
-- MVP1: UI upload only (PDF / PNG / JPG).
-- Files stored behind a `StorageService` interface; local folder path is configurable.
+- MVP1: UI upload only (PDF / PNG / JPG), one file per request; the UI uploads several one after another.
+- File type is decided by the file's signature (first bytes), never by name or browser Content-Type.
+  The stored `content_type` is the detected one.
+- Limit 10 MB per file (checked in `BillService`; the container multipart limit is 12 MB so users see the clear message).
+- Duplicates: same SHA-256 for the same landlord → 409 with `existingBillId` in the ProblemDetail.
+  Different landlords may upload the same file.
+- Optional utility account at upload; it must belong to the landlord (400 on `utilityAccountId` otherwise).
+- Storage behind `StorageService` (store / open / delete). MVP1 uses `LocalStorageService` under
+  `app.storage.local-root` (default `./storage`, relative to `backend/`).
+- Storage key: `<landlordId>/<yyyy>/<MM>/<billId>.<ext>` (upload month in `app.time-zone`); never the original filename.
+  Keys are validated (safe characters only, no `.`/`..` segments, must stay inside the root).
+- Files are written to a temp file and moved into place, so half-written files never appear.
+- If the database transaction doesn't commit after the file was stored, the file is deleted
+  (transaction synchronization). A deleted bill's file is removed after commit.
+- The original filename is kept for display only (last path part, control characters removed, max 200 chars).
+- `GET /api/bills/{id}/file` streams the file inline with `Cache-Control: no-store, private`.
+  The UI fetches it with the token and shows it from a blob URL.
+- A bill can't be deleted once `VERIFIED` or once it appears on an invoice line.
 
 ## Invoices
 
@@ -112,11 +133,6 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - Payments table supports partial payments (amount, date, optional note).
 - `amount pending = invoice total − sum of payments`.
 - **Mark as paid** becomes available when amount pending reaches 0.
-
-## Open questions for later phases
-
-- Phase 5: is a FLAT split amount per month (prorated by days) or per bill? Decide before building the billing engine.
-- Phase 5: editing the dates of a lease that already has invoices is currently allowed; decide whether to lock it.
 
 ## MVP2 backlog
 

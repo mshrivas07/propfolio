@@ -1,6 +1,11 @@
 package com.propfolio.rentals;
 
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,6 +15,7 @@ import com.propfolio.common.error.NotFoundException;
 import com.propfolio.documents.BillRepository;
 import com.propfolio.rentals.web.UtilityAccountDtos.UtilityAccountRequest;
 import com.propfolio.rentals.web.UtilityAccountDtos.UtilityAccountResponse;
+import com.propfolio.rentals.web.UtilityAccountDtos.UtilityAccountSummary;
 import com.propfolio.security.CurrentLandlord;
 
 /**
@@ -25,14 +31,33 @@ public class UtilityAccountService {
     private final PropertyService propertyService;
     private final SplitRuleRepository splitRules;
     private final BillRepository bills;
+    private final PropertyRepository properties;
 
     public UtilityAccountService(CurrentLandlord currentLandlord, UtilityAccountRepository accounts,
-            PropertyService propertyService, SplitRuleRepository splitRules, BillRepository bills) {
+            PropertyService propertyService, SplitRuleRepository splitRules, BillRepository bills,
+            PropertyRepository properties) {
         this.currentLandlord = currentLandlord;
         this.accounts = accounts;
         this.propertyService = propertyService;
         this.splitRules = splitRules;
         this.bills = bills;
+        this.properties = properties;
+    }
+
+    /** Every utility account the landlord has, sorted by property, then type and provider. */
+    @Transactional(readOnly = true)
+    public List<UtilityAccountSummary> listAll() {
+        UUID landlordId = currentLandlord.id();
+        Map<UUID, Property> propertyById = properties.findAllByLandlordIdOrderByNameAsc(landlordId).stream()
+                .collect(Collectors.toMap(Property::getId, Function.identity()));
+        return accounts.findAllByLandlordId(landlordId).stream()
+                .map(a -> new UtilityAccountSummary(a.getId(), a.getPropertyId(),
+                        propertyById.get(a.getPropertyId()).getName(), a.getUtilityType(), a.getProviderName(),
+                        a.getAccountNumber()))
+                .sorted(Comparator.comparing(UtilityAccountSummary::propertyName, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(UtilityAccountSummary::utilityType)
+                        .thenComparing(UtilityAccountSummary::providerName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     public UtilityAccountResponse create(UUID propertyId, UtilityAccountRequest request) {

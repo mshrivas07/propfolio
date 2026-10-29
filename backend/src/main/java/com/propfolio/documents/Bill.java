@@ -10,6 +10,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -19,7 +20,9 @@ import com.propfolio.common.persistence.LandlordOwnedEntity;
  * An uploaded utility bill and the values extracted from it.
  */
 @Entity
-@Table(name = "bill")
+// Mirrors bill_file_unique in the migration, so the in-memory test database enforces it too.
+@Table(name = "bill", uniqueConstraints = @UniqueConstraint(name = "bill_file_unique",
+        columnNames = {"landlord_id", "file_sha256"}))
 public class Bill extends LandlordOwnedEntity {
 
     @Column(name = "utility_account_id")

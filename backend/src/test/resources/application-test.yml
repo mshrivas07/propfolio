@@ -10,6 +10,9 @@ spring:
       ddl-auto: create-drop
 
 app:
+  storage:
+    # Shared temp folder; tests use random landlord ids, so files never collide.
+    local-root: ${java.io.tmpdir}/propfolio-test-storage
   supabase:
     url: https://test-project.supabase.co
     jwks-uri: https://test-project.supabase.co/auth/v1/.well-known/jwks.json

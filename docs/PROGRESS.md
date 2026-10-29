@@ -255,3 +255,69 @@ Frontend (`frontend/src/`)
 
 - [x] `202610010001_initial_schema.sql`
 - [x] `202610200001_lease_no_overlap.sql`
+
+## Phase 3 — Document ingestion ✅
+
+Branch: `feature/1.0.1_1` (merge to `release/1.0.1` after review)
+
+### API
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/bills` | Upload one file (multipart `file`, optional `utilityAccountId`) → 201 |
+| GET | `/api/bills?status=&propertyId=` | List, newest first, optional filters |
+| GET | `/api/bills/{id}` | One bill |
+| GET | `/api/bills/{id}/file` | The original file, inline |
+| DELETE | `/api/bills/{id}` | Delete row and file (409 once verified or invoiced) |
+| GET | `/api/utility-accounts` | All utility accounts with property names (upload picker) |
+
+### Files created
+
+Backend — main (`backend/src/main/java/com/propfolio/`)
+- `documents/BillFileType.java` — PDF / PNG / JPEG detection by signature
+- `documents/BillService.java`
+- `documents/storage/` — `StorageService`, `LocalStorageService`, `StorageProperties`, `StorageException`
+- `documents/web/` — `BillController`, `BillDtos`
+
+Backend — test (`backend/src/test/java/com/propfolio/documents/`)
+- `TestFiles` (tiny made-up files; never real bills)
+- `BillFileTypeTest`, `storage/LocalStorageServiceTest`, `BillControllerTest`, `BillUploadRollbackTest`
+
+Frontend (`frontend/src/`)
+- `components/ui/Badge.jsx`
+- `pages/bills/` — `BillsPage`, `BillUploader`, `BillDetailPage`, `BillPreview`
+
+### Files modified
+
+- `.gitignore` — bill folders anchored (`/storage/`, `/backend/storage/`); the old `storage/` rule also ignored Java packages named `storage`
+- `backend/.../documents/Bill.java` — `@UniqueConstraint` mirroring `bill_file_unique` (so the test database enforces it)
+- `backend/.../documents/BillRepository.java` — landlord-scoped finders, duplicate lookup, filtered lists
+- `backend/.../billing/InvoiceLineRepository.java` — `existsByBillId`
+- `backend/.../common/error/ConflictException.java`, `GlobalExceptionHandler.java` — optional extra ProblemDetail properties
+- `backend/.../rentals/UtilityAccountRepository.java`, `UtilityAccountService.java`, `web/UtilityAccountController.java`, `web/UtilityAccountDtos.java` — `GET /api/utility-accounts`
+- `backend/src/main/resources/application.yml` — multipart limit 12 MB (service enforces 10 MB), storage comment
+- `backend/src/test/resources/application-test.yml` — test storage folder in the system temp directory
+- `frontend/src/lib/api.js` — FormData uploads, blob downloads, `ApiError.problem`, bill endpoints
+- `frontend/src/lib/format.js` — date-time, file size, bill status labels and tones
+- `frontend/src/App.jsx` — `/bills` and `/bills/:billId` routes
+- `docs/DECISIONS.md` — ingestion decisions; FLAT-per-bill and editable-lease decisions; open questions removed
+- `docs/PROGRESS.md` — this entry
+
+### What was verified in the scaffolding environment
+
+- Frontend production build.
+- Bills list, uploader (uploaded / duplicate / rejected states) and bill detail with preview rendered
+  against a stubbed API at desktop and phone widths.
+- Not verified there: `mvn test` (no Maven Central access) — run locally.
+
+### Deferred
+
+- Extraction, matching and verification → Phase 4
+- Paging on the bills list → when needed
+- Cloud storage implementation → MVP2
+
+### Supabase migrations applied
+
+- [x] `202610010001_initial_schema.sql`
+- [x] `202610200001_lease_no_overlap.sql`
+- (no new migration in Phase 3)
