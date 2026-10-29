@@ -187,8 +187,8 @@ public class BillService {
                         .distinct().toList()), Property::getId);
 
         return rows.stream().map(bill -> {
-            UtilityAccount account = accountById.get(bill.getUtilityAccountId());
-            Property property = account == null ? null : propertyById.get(account.getPropertyId());
+            UtilityAccount account = bill.getUtilityAccountId() == null ? null
+                    : accountById.get(bill.getUtilityAccountId());            Property property = account == null ? null : propertyById.get(account.getPropertyId());
             return new BillResponse(bill.getId(), bill.getStatus(), bill.getOriginalFilename(), bill.getContentType(),
                     bill.getFileSizeBytes(), bill.getUtilityAccountId(),
                     account == null ? null : account.getUtilityType(),

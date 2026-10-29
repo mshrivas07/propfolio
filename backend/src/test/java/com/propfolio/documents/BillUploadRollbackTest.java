@@ -20,6 +20,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.propfolio.documents.storage.StorageProperties;
 import com.propfolio.documents.web.BillDtos.BillResponse;
 import com.propfolio.security.CurrentLandlord;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 
 /**
  * If the database transaction doesn't commit after the file was stored,
@@ -69,13 +71,15 @@ class BillUploadRollbackTest {
         assertThat(filesFor(landlordId)).hasSize(1);
     }
 
-    private Stream<Path> filesFor(UUID landlord) throws Exception {
+    private Stream<Path> filesFor(UUID landlord) {
         Path folder = storageProperties.localRoot().toAbsolutePath().normalize().resolve(landlord.toString());
         if (!Files.exists(folder)) {
             return Stream.empty();
         }
         try (Stream<Path> walk = Files.walk(folder)) {
             return walk.filter(Files::isRegularFile).toList().stream();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 }
