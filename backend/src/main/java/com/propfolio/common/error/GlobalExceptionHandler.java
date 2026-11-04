@@ -50,8 +50,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(InvalidRequestException.class)
     ProblemDetail handleInvalid(InvalidRequestException ex) {
-        ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, "Invalid request", ex.getMessage());
-        problem.setProperty(ERRORS_PROPERTY, List.of(new FieldError(ex.getField(), ex.getMessage())));
+        String detail = ex.getErrors().size() == 1 ? ex.getMessage() : "Some fields need attention.";
+        ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, "Invalid request", detail);
+        problem.setProperty(ERRORS_PROPERTY, ex.getErrors());
         return problem;
     }
 

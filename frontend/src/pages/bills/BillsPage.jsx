@@ -4,18 +4,23 @@ import Badge from '../../components/ui/Badge'
 import { SelectField } from '../../components/ui/Field'
 import Section from '../../components/ui/Section'
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/States'
-import { useApiData } from '../../hooks/useApiData'
+import { useApiData, useInterval } from '../../hooks/useApiData'
 import { listAllUtilityAccounts, listBills, listProperties } from '../../lib/api'
 import {
+  billBadge,
   billStatusLabels,
-  billStatusTones,
+  formatDate,
   formatDateTime,
-  formatFileSize,
+  formatMoney,
   utilityTypeLabels,
 } from '../../lib/format'
 import BillUploader from './BillUploader'
 
-const statusOptions = Object.entries(billStatusLabels).map(([value, label]) => ({ value, label }))
+const statusOptions = ['UPLOADED', 'NEEDS_REVIEW', 'READY', 'VERIFIED'].map((value) => ({
+  value,
+  label: billStatusLabels[value],
+}))
+const POLL_MS = 3000
 
 export default function BillsPage() {
   const [status, setStatus] = useState('')
@@ -27,16 +32,20 @@ export default function BillsPage() {
   const properties = useApiData(listProperties)
 
   const filtered = Boolean(status || propertyId)
+  const anyReading = (bills.data ?? []).some((bill) => bill.extractionState === 'RUNNING')
+  // While a bill is being read, refresh quietly until the reading finishes.
+  useInterval(() => bills.reload({ silent: true }), POLL_MS, anyReading)
 
   return (
     <section>
       <h1 className="text-2xl font-semibold">Bills</h1>
       <p className="mt-1 max-w-prose text-sm text-ink-muted">
-        Upload the utility bills you download from your providers. Reading the amounts and dates from them comes next.
+        Upload the utility bills you download from your providers. Each one is read automatically; check the details
+        and verify it before it goes on an invoice.
       </p>
 
       <div className="mt-6">
-        <BillUploader accounts={accounts.data ?? []} onUploaded={bills.reload} />
+        <BillUploader accounts={accounts.data ?? []} onUploaded={() => bills.reload({ silent: true })} />
         {accounts.error && (
           <p className="mt-2 text-sm text-danger">Couldn't load your utility accounts. You can still upload.</p>
         )}
@@ -69,31 +78,44 @@ export default function BillsPage() {
         )}
         {bills.data && bills.data.length > 0 && (
           <ul className={`divide-y divide-line overflow-hidden rounded-lg border border-line bg-panel ${bills.loading ? 'opacity-60' : ''}`}>
-            {bills.data.map((bill) => (
-              <li key={bill.id}>
-                <Link
-                  to={`/bills/${bill.id}`}
-                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 hover:bg-surface"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{bill.originalFilename}</span>
-                    <span className="block text-sm text-ink-muted">
-                      {bill.providerName
-                        ? `${bill.propertyName ?? ''}${bill.propertyName ? ' · ' : ''}${bill.providerName}${
-                            bill.utilityType ? ` (${utilityTypeLabels[bill.utilityType]})` : ''
-                          }`
-                        : 'No utility account yet'}
+            {bills.data.map((bill) => {
+              const badge = billBadge(bill)
+              return (
+                <li key={bill.id}>
+                  <Link
+                    to={`/bills/${bill.id}`}
+                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 hover:bg-surface"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">
+                        {bill.providerName
+                          ? `${bill.providerName}${bill.utilityType ? ` (${utilityTypeLabels[bill.utilityType]})` : ''}`
+                          : bill.originalFilename}
+                      </span>
+                      <span className="block text-sm text-ink-muted">
+                        {[
+                          bill.propertyName,
+                          bill.periodStart && bill.periodEnd
+                            ? `${formatDate(bill.periodStart)} – ${formatDate(bill.periodEnd)}`
+                            : null,
+                          bill.providerName ? bill.originalFilename : 'No utility account yet',
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
                     </span>
-                  </span>
-                  <span className="flex items-center gap-3 text-sm text-ink-muted">
-                    <span>
-                      {formatDateTime(bill.createdAt)} · {formatFileSize(bill.fileSizeBytes)}
+                    <span className="flex items-center gap-3 text-sm text-ink-muted">
+                      {bill.currentCharges != null ? (
+                        <span className="font-medium tabular-nums text-ink">{formatMoney(bill.currentCharges)}</span>
+                      ) : (
+                        <span>Uploaded {formatDateTime(bill.createdAt)}</span>
+                      )}
+                      <Badge tone={badge.tone}>{badge.label}</Badge>
                     </span>
-                    <Badge tone={billStatusTones[bill.status]}>{billStatusLabels[bill.status]}</Badge>
-                  </span>
-                </Link>
-              </li>
-            ))}
+                  </Link>
+                </li>
+              )
+            })}
           </ul>
         )}
       </Section>

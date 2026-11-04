@@ -8,6 +8,7 @@ has already been applied; add a new file instead.
 |---|---|
 | `202610010001_initial_schema.sql` | Creates the `propfolio` schema and all MVP1 tables, constraints, indexes and `updated_at` triggers |
 | `202610200001_lease_no_overlap.sql` | Phase 2: database rule that leases on the same unit can't overlap |
+| `202610290001_bill_extraction_fields.sql` | Phase 4: bill reading columns (current charges, previous balance, reading state); verified bills need current charges > 0 |
 
 ## How to apply a migration (Supabase SQL Editor)
 

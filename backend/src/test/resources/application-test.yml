@@ -10,6 +10,15 @@ spring:
       ddl-auto: create-drop
 
 app:
+  openai:
+    api-key: test-key
+    base-url: http://openai.invalid/v1
+  bills:
+    # Tests trigger readings explicitly; uploads don't start one.
+    auto-extract: false
+  extraction:
+    # Run readings on the calling thread so tests can check the result straight away.
+    inline: true
   storage:
     # Shared temp folder; tests use random landlord ids, so files never collide.
     local-root: ${java.io.tmpdir}/propfolio-test-storage

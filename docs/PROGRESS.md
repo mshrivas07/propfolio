@@ -321,3 +321,76 @@ Frontend (`frontend/src/`)
 - [x] `202610010001_initial_schema.sql`
 - [x] `202610200001_lease_no_overlap.sql`
 - (no new migration in Phase 3)
+
+## Phase 4 — Extraction and verification ✅
+
+Branch: `feature/1.0.1_1` (merge to `release/1.0.1` after review)
+
+### API
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/bills/{id}` | Now includes reading state, read values, per-field confidence and review issues |
+| PUT | `/api/bills/{id}/fields` | Save review edits (all fields replaced) → status re-evaluated |
+| POST | `/api/bills/{id}/extract` | Read the bill (again) in the background |
+| POST | `/api/bills/{id}/verify` | Verify (400 lists every missing field; 409 if overlapping a verified bill) |
+| POST | `/api/bills/{id}/unverify` | Un-verify (409 while on a live invoice) |
+
+### Files created
+
+Database
+- `supabase/migrations/202610290001_bill_extraction_fields.sql`
+
+Backend — main (`backend/src/main/java/com/propfolio/`)
+- `documents/` — `BillChecks`, `BillReviewService`, `BillResponseMapper`, `ExtractedBill`, `AccountNumbers`,
+  `BillProcessingProperties`, `BillExtractionRequested`
+- `documents/web/BillReviewController.java`
+- `extraction/` — `OpenAiBillReader`, `OpenAiProperties`, `ExtractionConfig`, `ExtractionExecutor`,
+  `ExtractionTrigger`, `BillExtractionJob`, `ExtractionException`
+- `backend/src/main/resources/extraction/instructions.md`, `utility-bill-schema.json`
+
+Backend — test
+- `documents/` — `TestReadings`, `ExtractedBillTest`, `BillChecksTest`
+- `extraction/` — `OpenAiBillReaderTest`, `BillReviewFlowTest`
+
+Frontend (`frontend/src/`)
+- `pages/bills/BillReviewForm.jsx`
+
+### Files modified
+
+- `backend/.../documents/Bill.java` — `currentCharges`, `previousBalance`, `extractionRequestedAt`, `extractedAt`, `extractionError`
+- `backend/.../documents/BillRepository.java` — overlapping-period query
+- `backend/.../documents/BillService.java` — responses via `BillResponseMapper`; starts reading after upload
+- `backend/.../documents/web/BillDtos.java` — review fields in `BillResponse`; `BillFieldsRequest`, `FieldReview`, `ReviewIssue`, `ExtractionState`
+- `backend/.../billing/InvoiceLineRepository.java` — `existsByBillIdAndVoidedFalse`
+- `backend/.../common/error/InvalidRequestException.java`, `GlobalExceptionHandler.java` — several field errors in one 400
+- `backend/.../extraction/package-info.java` — package description
+- `backend/src/main/resources/application.yml` — `app.openai.*`, `app.bills.*`
+- `backend/src/test/resources/application-test.yml` — fake OpenAI settings, auto-extract off, readings inline
+- `backend/.env.example` — optional `OPENAI_MODEL`, `APP_BILLS_AUTO_EXTRACT`
+- `frontend/src/hooks/useApiData.js` — silent reload, `setData`, `useInterval`
+- `frontend/src/components/ui/Field.jsx` — optional `id` and `inputClassName`
+- `frontend/src/lib/api.js` — review endpoints
+- `frontend/src/lib/format.js` — `billBadge` (status + reading state)
+- `frontend/src/pages/bills/BillsPage.jsx` — badges, amounts and periods, quiet refresh while reading
+- `frontend/src/pages/bills/BillDetailPage.jsx` — review screen
+- `supabase/migrations/README.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`
+
+### What was verified in the scaffolding environment
+
+- `202610290001_bill_extraction_fields.sql` applied after the earlier migrations on PostgreSQL 16;
+  verifying without current charges, or with $0, is rejected.
+- Frontend production build; bills list and review screen (needs review, reading, failed, verified;
+  desktop and phone widths) rendered against a stubbed API.
+- Not verified there: `mvn test` (no Maven Central access) and a live OpenAI call — run locally.
+
+### Deferred
+
+- Splitting verified bills into invoices → Phase 5
+- Multi-service bills (e.g. water + wastewater as separate lines) → read as one total for now
+
+### Supabase migrations applied
+
+- [x] `202610010001_initial_schema.sql`
+- [x] `202610200001_lease_no_overlap.sql`
+- [ ] `202610290001_bill_extraction_fields.sql`

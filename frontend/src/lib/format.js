@@ -41,17 +41,21 @@ export function formatFileSize(bytes) {
 
 export const billStatusLabels = {
   UPLOADED: 'Uploaded',
-  EXTRACTED: 'Extracted',
+  EXTRACTED: 'Read',
   READY: 'Ready to verify',
   NEEDS_REVIEW: 'Needs review',
   VERIFIED: 'Verified',
 }
 
-/** Badge tone per bill status (see components/ui/Badge). */
-export const billStatusTones = {
-  UPLOADED: 'neutral',
-  EXTRACTED: 'info',
-  READY: 'info',
-  NEEDS_REVIEW: 'attention',
-  VERIFIED: 'success',
+/**
+ * The badge for a bill, combining its status with where reading it stands.
+ * Returns { label, tone } (tones: see components/ui/Badge).
+ */
+export function billBadge(bill) {
+  if (bill.status === 'VERIFIED') return { label: 'Verified', tone: 'success' }
+  if (bill.extractionState === 'RUNNING') return { label: 'Reading…', tone: 'info' }
+  if (bill.status === 'READY') return { label: 'Ready to verify', tone: 'info' }
+  if (bill.status === 'NEEDS_REVIEW') return { label: 'Needs review', tone: 'attention' }
+  if (bill.extractionState === 'FAILED') return { label: 'Reading failed', tone: 'danger' }
+  return { label: 'Not read yet', tone: 'neutral' }
 }

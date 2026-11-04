@@ -127,5 +127,11 @@ export function uploadBill(file, utilityAccountId) {
   return request('POST', '/api/bills', form)
 }
 
+// Bill review (each returns the bill with its updated review)
+export const updateBillFields = (id, body) => apiPut(`/api/bills/${id}/fields`, body)
+export const extractBill = (id) => apiPost(`/api/bills/${id}/extract`)
+export const verifyBill = (id) => apiPost(`/api/bills/${id}/verify`)
+export const unverifyBill = (id) => apiPost(`/api/bills/${id}/unverify`)
+
 /** The original file as a Blob (fetched with the token, so it can't be a plain link). */
 export const fetchBillFile = (id) => request('GET', `/api/bills/${id}/file`, undefined, { responseType: 'blob' })

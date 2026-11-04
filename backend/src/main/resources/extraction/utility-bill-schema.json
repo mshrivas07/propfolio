@@ -1,0 +1,62 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "is_utility_bill",
+    "provider_name",
+    "account_number",
+    "service_address",
+    "utility_type",
+    "period_start",
+    "period_end",
+    "current_charges",
+    "previous_balance",
+    "amount_due",
+    "due_date",
+    "confidence"
+  ],
+  "properties": {
+    "is_utility_bill": { "type": "boolean", "description": "False if this document is not a utility bill." },
+    "provider_name": { "type": ["string", "null"], "description": "Company that issued the bill." },
+    "account_number": { "type": ["string", "null"], "description": "Customer account number exactly as printed." },
+    "service_address": { "type": ["string", "null"], "description": "Address being serviced." },
+    "utility_type": {
+      "type": ["string", "null"],
+      "enum": ["ELECTRICITY", "GAS", "WATER", "INTERNET", "OTHER", null]
+    },
+    "period_start": { "type": ["string", "null"], "description": "First day of the service period, YYYY-MM-DD." },
+    "period_end": { "type": ["string", "null"], "description": "Last day of the service period, YYYY-MM-DD." },
+    "current_charges": { "type": ["number", "null"], "description": "This period's charges incl. tax, excluding earlier balances." },
+    "previous_balance": { "type": ["number", "null"], "description": "Balance carried forward after payments; negative for a credit." },
+    "amount_due": { "type": ["number", "null"], "description": "Total amount the bill asks to be paid." },
+    "due_date": { "type": ["string", "null"], "description": "Payment due date, YYYY-MM-DD." },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_name",
+        "account_number",
+        "service_address",
+        "utility_type",
+        "period_start",
+        "period_end",
+        "current_charges",
+        "previous_balance",
+        "amount_due",
+        "due_date"
+      ],
+      "properties": {
+        "provider_name": { "type": "number" },
+        "account_number": { "type": "number" },
+        "service_address": { "type": "number" },
+        "utility_type": { "type": "number" },
+        "period_start": { "type": "number" },
+        "period_end": { "type": "number" },
+        "current_charges": { "type": "number" },
+        "previous_balance": { "type": "number" },
+        "amount_due": { "type": "number" },
+        "due_date": { "type": "number" }
+      }
+    }
+  }
+}

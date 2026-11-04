@@ -45,6 +45,21 @@ app:
     url: ${SUPABASE_URL}
     jwks-uri: ${SUPABASE_JWKS_URI:${SUPABASE_URL}/auth/v1/.well-known/jwks.json}
 
+  openai:
+    # Never commit the key; put it in backend/.env as OPENAI_API_KEY.
+    api-key: ${OPENAI_API_KEY:}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+    # Any current vision-capable model. gpt-6-luna is OpenAI's low-cost model for high-volume tasks;
+    # try gpt-6.1-terra if readings of your bills aren't accurate enough.
+    model: ${OPENAI_MODEL:gpt-6-luna}
+    timeout: ${OPENAI_TIMEOUT:90s}
+  bills:
+    # Read each bill with OpenAI right after upload.
+    auto-extract: ${APP_BILLS_AUTO_EXTRACT:true}
+    # Combined confidence (0–1) a bill needs, with no review issues, to be marked READY.
+    ready-threshold: ${APP_BILLS_READY_THRESHOLD:0.85}
+    # A reading still unfinished after this long is shown as failed and can be re-run.
+    extraction-stalled-after: 10m
+
 # Added in later phases (values come from environment variables, never committed):
-#   Phase 4: app.openai.api-key, app.openai.model
 #   Phase 6: app.google.client-id, app.google.client-secret, app.google.redirect-uri

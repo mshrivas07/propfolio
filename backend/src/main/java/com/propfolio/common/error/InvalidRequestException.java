@@ -1,19 +1,30 @@
 package com.propfolio.common.error;
 
+import java.util.List;
+
 /**
- * A field value breaks a business rule that annotations cannot express
- * (e.g. end date before start date). Maps to 400 with a field-level error.
+ * One or more field values break a business rule that annotations cannot express
+ * (e.g. end date before start date). Maps to 400 with field-level errors.
  */
 public class InvalidRequestException extends RuntimeException {
 
-    private final String field;
+    private final List<FieldError> errors;
 
     public InvalidRequestException(String field, String message) {
-        super(message);
-        this.field = field;
+        this(List.of(new FieldError(field, message)));
     }
 
+    public InvalidRequestException(List<FieldError> errors) {
+        super(errors.isEmpty() ? "Invalid request" : errors.getFirst().message());
+        this.errors = List.copyOf(errors);
+    }
+
+    /** The first field with a problem. */
     public String getField() {
-        return field;
+        return errors.isEmpty() ? null : errors.getFirst().field();
+    }
+
+    public List<FieldError> getErrors() {
+        return errors;
     }
 }

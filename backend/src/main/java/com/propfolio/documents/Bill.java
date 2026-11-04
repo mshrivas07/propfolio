@@ -75,6 +75,21 @@ public class Bill extends LandlordOwnedEntity {
     @Column(name = "verified_at")
     private Instant verifiedAt;
 
+    @Column(name = "current_charges", precision = 12, scale = 2)
+    private BigDecimal currentCharges;
+
+    @Column(name = "previous_balance", precision = 12, scale = 2)
+    private BigDecimal previousBalance;
+
+    @Column(name = "extraction_requested_at")
+    private Instant extractionRequestedAt;
+
+    @Column(name = "extracted_at")
+    private Instant extractedAt;
+
+    @Column(name = "extraction_error")
+    private String extractionError;
+
     protected Bill() {
         // for JPA
     }
@@ -214,5 +229,45 @@ public class Bill extends LandlordOwnedEntity {
 
     public void setVerifiedAt(Instant verifiedAt) {
         this.verifiedAt = verifiedAt;
+    }
+
+    public BigDecimal getCurrentCharges() {
+        return currentCharges;
+    }
+
+    public void setCurrentCharges(BigDecimal currentCharges) {
+        this.currentCharges = currentCharges;
+    }
+
+    public BigDecimal getPreviousBalance() {
+        return previousBalance;
+    }
+
+    public void setPreviousBalance(BigDecimal previousBalance) {
+        this.previousBalance = previousBalance;
+    }
+
+    public Instant getExtractionRequestedAt() {
+        return extractionRequestedAt;
+    }
+
+    public void setExtractionRequestedAt(Instant extractionRequestedAt) {
+        this.extractionRequestedAt = extractionRequestedAt;
+    }
+
+    public Instant getExtractedAt() {
+        return extractedAt;
+    }
+
+    public void setExtractedAt(Instant extractedAt) {
+        this.extractedAt = extractedAt;
+    }
+
+    public String getExtractionError() {
+        return extractionError;
+    }
+
+    public void setExtractionError(String extractionError) {
+        this.extractionError = extractionError;
     }
 }

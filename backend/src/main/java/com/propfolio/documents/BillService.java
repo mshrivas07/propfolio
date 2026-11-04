@@ -10,8 +10,6 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,8 +26,6 @@ import com.propfolio.common.error.NotFoundException;
 import com.propfolio.documents.storage.StorageService;
 import com.propfolio.documents.web.BillDtos.BillFile;
 import com.propfolio.documents.web.BillDtos.BillResponse;
-import com.propfolio.rentals.Property;
-import com.propfolio.rentals.PropertyRepository;
 import com.propfolio.rentals.UtilityAccount;
 import com.propfolio.rentals.UtilityAccountRepository;
 import com.propfolio.security.CurrentLandlord;
@@ -40,6 +36,7 @@ import com.propfolio.security.CurrentLandlord;
  * <p>Upload order: validate → duplicate check → create the bill row (id assigned) → store the
  * file under {@code <landlordId>/<yyyy>/<MM>/<billId>.<ext>} → commit. If the transaction doesn't
  * commit (e.g. a duplicate slips past the check in a race), the stored file is deleted again.
+ * With {@code app.bills.auto-extract} on, reading the bill starts once the upload commits.
  */
 @Service
 @Transactional
@@ -52,19 +49,24 @@ public class BillService {
     private final CurrentLandlord currentLandlord;
     private final BillRepository bills;
     private final UtilityAccountRepository utilityAccounts;
-    private final PropertyRepository properties;
     private final InvoiceLineRepository invoiceLines;
     private final StorageService storage;
+    private final BillResponseMapper mapper;
+    private final BillReviewService reviewService;
+    private final BillProcessingProperties settings;
     private final Clock clock;
 
     public BillService(CurrentLandlord currentLandlord, BillRepository bills, UtilityAccountRepository utilityAccounts,
-            PropertyRepository properties, InvoiceLineRepository invoiceLines, StorageService storage, Clock clock) {
+            InvoiceLineRepository invoiceLines, StorageService storage, BillResponseMapper mapper,
+            BillReviewService reviewService, BillProcessingProperties settings, Clock clock) {
         this.currentLandlord = currentLandlord;
         this.bills = bills;
         this.utilityAccounts = utilityAccounts;
-        this.properties = properties;
         this.invoiceLines = invoiceLines;
         this.storage = storage;
+        this.mapper = mapper;
+        this.reviewService = reviewService;
+        this.settings = settings;
         this.clock = clock;
     }
 
@@ -104,7 +106,10 @@ public class BillService {
         storage.store(key, new ByteArrayInputStream(content));
         deleteFileUnlessCommitted(key);
 
-        return toResponses(List.of(bill), landlordId).getFirst();
+        if (settings.autoExtract()) {
+            reviewService.startExtraction(bill, true); // reading starts after commit
+        }
+        return mapper.toDetail(bill);
     }
 
     @Transactional(readOnly = true)
@@ -127,13 +132,12 @@ public class BillService {
                     : bills.findAllByLandlordIdAndStatusAndUtilityAccountIdInOrderByCreatedAtDesc(landlordId,
                             status, accountIds);
         }
-        return toResponses(rows, landlordId);
+        return mapper.toList(rows);
     }
 
     @Transactional(readOnly = true)
     public BillResponse get(UUID billId) {
-        UUID landlordId = currentLandlord.id();
-        return toResponses(List.of(require(billId, landlordId)), landlordId).getFirst();
+        return mapper.toDetail(require(billId, currentLandlord.id()));
     }
 
     @Transactional(readOnly = true)
@@ -175,30 +179,6 @@ public class BillService {
             name = name.substring(name.length() - MAX_FILENAME_LENGTH);
         }
         return name.isEmpty() ? "bill." + type.extension() : name;
-    }
-
-    private List<BillResponse> toResponses(List<Bill> rows, UUID landlordId) {
-        List<UUID> accountIds = rows.stream().map(Bill::getUtilityAccountId).filter(id -> id != null).distinct()
-                .toList();
-        Map<UUID, UtilityAccount> accountById = accountIds.isEmpty() ? Map.of()
-                : byId(utilityAccounts.findAllById(accountIds), UtilityAccount::getId);
-        Map<UUID, Property> propertyById = accountById.isEmpty() ? Map.of()
-                : byId(properties.findAllById(accountById.values().stream().map(UtilityAccount::getPropertyId)
-                        .distinct().toList()), Property::getId);
-
-        return rows.stream().map(bill -> {
-            UtilityAccount account = bill.getUtilityAccountId() == null ? null
-                    : accountById.get(bill.getUtilityAccountId());            Property property = account == null ? null : propertyById.get(account.getPropertyId());
-            return new BillResponse(bill.getId(), bill.getStatus(), bill.getOriginalFilename(), bill.getContentType(),
-                    bill.getFileSizeBytes(), bill.getUtilityAccountId(),
-                    account == null ? null : account.getUtilityType(),
-                    account != null ? account.getProviderName() : bill.getProviderName(),
-                    account != null && account.getAccountNumber() != null ? account.getAccountNumber()
-                            : bill.getAccountNumber(),
-                    property == null ? null : property.getId(), property == null ? null : property.getName(),
-                    bill.getPeriodStart(), bill.getPeriodEnd(), bill.getAmountDue(), bill.getDueDate(),
-                    bill.getConfidence(), bill.getVerifiedAt(), bill.getCreatedAt());
-        }).toList();
     }
 
     private void deleteFileUnlessCommitted(String key) {
@@ -243,9 +223,5 @@ public class BillService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is always available", e);
         }
-    }
-
-    private static <T> Map<UUID, T> byId(List<T> rows, Function<T, UUID> id) {
-        return rows.stream().collect(Collectors.toMap(id, Function.identity()));
     }
 }

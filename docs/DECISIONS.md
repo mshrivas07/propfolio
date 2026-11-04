@@ -118,10 +118,36 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - An invoice is locked once `EMAIL_DRAFTED`; corrections mean void and reissue.
 - Double-billing protection: each `invoice_line` records `bill_id` + covered date range; overlapping ranges for the same bill and unit are blocked unless the earlier invoice is `VOID`.
 
-## Bills
+## Bills: reading and verification (decided in Phase 4)
 
-- Statuses: `UPLOADED` → `EXTRACTED` → `READY` / `NEEDS_REVIEW` → `VERIFIED`.
-- Only `VERIFIED` bills feed invoices.
+- Statuses: `UPLOADED` → `READY` / `NEEDS_REVIEW` → `VERIFIED`. Status is re-evaluated after every reading
+  and every edit. `EXTRACTED` is not used as a resting state. Only `VERIFIED` bills feed invoices.
+- **The split amount is `current_charges`** (this period's charges incl. tax), not `amount_due`, which can
+  include a previous balance or credits. Both are stored, plus `previous_balance`.
+- Reading runs automatically in the background after the upload commits (`app.bills.auto-extract`),
+  two at a time, on a small thread pool. "Read again" / "Read bill" re-runs it and replaces the read fields.
+- Reading state is derived from `extraction_requested_at`, `extracted_at` and `extraction_error`:
+  NOT_STARTED, RUNNING, DONE or FAILED. A reading unfinished after 10 minutes shows as failed.
+  A reading that finishes after a newer request (or after the bill was verified or deleted) is discarded.
+- A failed reading leaves the bill `UPLOADED` with a readable reason; the landlord can retry or type the details in.
+- OpenAI: Responses API over Spring `RestClient` (no SDK). PDFs go as `input_file`, images as `input_image`
+  (base64 data URLs). Strict structured output (`resources/extraction/utility-bill-schema.json`),
+  instructions in `resources/extraction/instructions.md`, `store: false`. Default model `gpt-6-luna`
+  (configurable `OPENAI_MODEL`). Bill contents and the API key are never logged.
+- Review rules (`BillChecks`): period present, ends on/after start, at most 120 days; current charges present
+  and > 0; amount due within $0.05 of current + previous; account number matches the linked account
+  (spaces/dashes ignored); bill type matches the account type; provider names share a distinctive word;
+  no other bill on the same account covers overlapping days; every field the reader was less than
+  85% sure about is flagged until the landlord changes it.
+- Combined confidence = average reader confidence over provider, account number, period start/end and
+  current charges (typed or changed values count as 1.0, missing as 0), minus 15% per failed rule.
+  READY needs no issues and combined confidence ≥ `app.bills.ready-threshold` (0.85).
+- Matching: with no account chosen, a reading links the bill to the landlord's only utility account with the
+  same normalized account number. An account chosen at upload is never changed by a reading;
+  a different number on the bill makes it `NEEDS_REVIEW`.
+- Verify needs utility account, billing period (end ≥ start) and current charges > 0 (all missing fields are
+  reported together), and is blocked when another verified bill on the same account overlaps those days.
+- A verified bill can't be edited or re-read. It can be un-verified only while it isn't on a non-void invoice line.
 
 ## Sending
 
