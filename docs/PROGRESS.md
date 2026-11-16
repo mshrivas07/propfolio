@@ -394,3 +394,87 @@ Frontend (`frontend/src/`)
 - [x] `202610010001_initial_schema.sql`
 - [x] `202610200001_lease_no_overlap.sql`
 - [ ] `202610290001_bill_extraction_fields.sql`
+
+## Phase 5A — Charges and open invoices ✅
+
+Verified bills now become charges on each tenant's OPEN invoice automatically, bill by bill,
+prorated by days. Equal payment plan accounts split the plan payment.
+
+### API
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/invoices?status=&propertyId=&tenantId=` | List invoices, newest first (filters optional) |
+| GET | `/api/invoices/{id}` | Invoice with its charges |
+| PUT | `/api/invoices/{id}/due-date` | Change the due date (OPEN only; 409 otherwise) |
+
+Changed: utility account requests/responses carry `equalPaymentPlan`; bill responses add `equalPaymentPlan`,
+`splitBasis`, `amountToSplit`, `splitAmount`; `POST /api/bills/{id}/unverify` returns 409 only when a charge is on
+a locked (non-OPEN) invoice.
+
+### Files created
+
+Database
+- `supabase/migrations/202611150001_charges_and_open_invoices.sql`
+
+Backend — main (`backend/src/main/java/com/propfolio/billing/`)
+- `ChargeCalculator.java` — the pure charge arithmetic
+- `DraftInvoiceService.java` — rebuilds a lease's OPEN invoice
+- `InvoiceNumberService.java` — `INV-YYYY-NNNN` with a locked sequence row
+- `InvoiceQueryService.java` — list, detail, due date
+- `web/InvoiceController.java`, `web/InvoiceDtos.java`
+
+Backend — test (`backend/src/test/java/com/propfolio/billing/`)
+- `ChargeCalculatorTest.java` — Van Scott rows, move-in/out, two leases, vacancy, same-day lease, 1- and 92-day
+  bills, FLAT, rounding
+- `DraftInvoiceFlowTest.java` — verify → charges, un-verify, split rule and lease changes, plan accounts, FLAT,
+  locked invoices, idempotent rebuild, due date, lease delete, numbering, landlord isolation
+
+Frontend (`frontend/src/pages/invoices/`)
+- `InvoicesPage.jsx`, `InvoiceDetailPage.jsx`
+
+### Files modified
+
+- `backend/.../billing/Invoice.java` — default `OPEN`; period nullable
+- `backend/.../billing/InvoiceStatus.java` — `DRAFT` → `OPEN`
+- `backend/.../billing/InvoiceRepository.java`, `InvoiceLineRepository.java`, `InvoiceNumberSequenceRepository.java`,
+  `InvoiceNumberSequence.java` — queries for open/locked invoices; locked sequence lookup
+- `backend/.../documents/Bill.java` — `splitAmount`
+- `backend/.../documents/BillRepository.java` — verified bills overlapping a lease
+- `backend/.../documents/BillReviewService.java` — split amount at verify, rebuilds, new un-verify rule
+- `backend/.../documents/BillChecks.java`, `ExtractedBill.java` — plan rules; `onPaymentPlan`
+- `backend/.../documents/BillResponseMapper.java`, `web/BillDtos.java` — amount to split
+- `backend/.../rentals/UtilityAccount.java`, `UtilityAccountService.java`, `RentalMapper.java`,
+  `web/UtilityAccountDtos.java` — `equalPaymentPlan`
+- `backend/.../rentals/LeaseService.java`, `SplitRuleService.java`, `LeaseRepository.java`, `SplitRuleRepository.java`
+  — rebuild triggers; lease delete with only an OPEN invoice
+- `backend/src/main/resources/extraction/instructions.md`, `utility-bill-schema.json` — `on_payment_plan`
+- `backend/src/test/.../persistence/RepositorySmokeTest.java`, `rentals/DeleteRulesTest.java`,
+  `extraction/BillReviewFlowTest.java` — OPEN default; locked invoices
+- `frontend/src/App.jsx` — invoice routes
+- `frontend/src/lib/api.js`, `lib/format.js` — invoice calls, badges, periods, split basis
+- `frontend/src/pages/properties/UtilityAccountsSection.jsx` — "Equal payment plan" checkbox
+- `frontend/src/pages/properties/PropertyDetailPage.jsx`, `pages/tenants/TenantsPage.jsx` — links to invoices
+- `frontend/src/pages/bills/BillDetailPage.jsx`, `BillReviewForm.jsx`, `BillsPage.jsx` — amount to split
+- `docs/DECISIONS.md`, `docs/PROGRESS.md`
+
+### What was verified in the scaffolding environment
+
+- Migration applied after the earlier ones on PostgreSQL 16: an existing verified bill is backfilled with
+  `split_amount = current_charges`; an empty OPEN invoice is allowed; a second OPEN invoice for one lease and a
+  non-OPEN invoice without a period are rejected; verifying with split amount 0 is rejected.
+- `ChargeCalculator` run directly against every test case, including the three Van Scott rows
+  ($68.84, $82.43, $42.87).
+- Frontend production build; invoices list, invoice detail (with and without charges, no-match filter), bill
+  review with a plan account and the utility account checkbox rendered against a stubbed API.
+- Not verified there: `mvn test` (no Maven Central access) — run locally.
+
+### Deferred
+
+- Create invoice, delete/undo, cancel, payments, archive → Phase 5B
+- Gmail drafts and "Mark as sent" → Phase 6
+
+### Supabase migrations applied
+
+- [ ] `202611150001_charges_and_open_invoices.sql` — run before starting the backend
+

@@ -112,7 +112,7 @@ class RepositorySmokeTest {
         assertThat(savedBill.getCreatedAt()).isNotNull();
 
         Invoice savedInvoice = invoices.findById(invoice.getId()).orElseThrow();
-        assertThat(savedInvoice.getStatus()).isEqualTo(InvoiceStatus.DRAFT);
+        assertThat(savedInvoice.getStatus()).isEqualTo(InvoiceStatus.OPEN);
         assertThat(savedInvoice.getTotalAmount()).isEqualByComparingTo("0");
 
         assertThat(invoiceLines.findById(line.getId()).orElseThrow().isVoided()).isFalse();

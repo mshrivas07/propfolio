@@ -11,6 +11,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.propfolio.billing.DraftInvoiceService;
 import com.propfolio.billing.InvoiceLineRepository;
 import com.propfolio.common.error.ConflictException;
 import com.propfolio.common.error.FieldError;
@@ -26,9 +27,9 @@ import com.propfolio.security.CurrentLandlord;
  * The bill's life after upload: reading results, review edits, verify / un-verify.
  *
  * <pre>
- * UPLOADED ──read──▶ READY or NEEDS_REVIEW ──verify──▶ VERIFIED
+ * UPLOADED ──read──▶ READY or NEEDS_REVIEW ──verify──▶ VERIFIED (charges go on OPEN invoices)
  *    ▲   (reading failed: stays UPLOADED            │
- *    │    with extraction_error)          un-verify │ (only while not on a live invoice)
+ *    │    with extraction_error)          un-verify │ (only while its charges are on OPEN invoices only)
  *    └── re-run extraction ◀── READY / NEEDS_REVIEW ◀┘
  * </pre>
  *
@@ -44,17 +45,19 @@ public class BillReviewService {
     private final UtilityAccountRepository utilityAccounts;
     private final InvoiceLineRepository invoiceLines;
     private final BillResponseMapper mapper;
+    private final DraftInvoiceService draftInvoices;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public BillReviewService(CurrentLandlord currentLandlord, BillRepository bills,
             UtilityAccountRepository utilityAccounts, InvoiceLineRepository invoiceLines, BillResponseMapper mapper,
-            ApplicationEventPublisher events, Clock clock) {
+            DraftInvoiceService draftInvoices, ApplicationEventPublisher events, Clock clock) {
         this.currentLandlord = currentLandlord;
         this.bills = bills;
         this.utilityAccounts = utilityAccounts;
         this.invoiceLines = invoiceLines;
         this.mapper = mapper;
+        this.draftInvoices = draftInvoices;
         this.events = events;
         this.clock = clock;
     }
@@ -112,7 +115,16 @@ public class BillReviewService {
         } else if (bill.getPeriodStart() != null && bill.getPeriodEnd().isBefore(bill.getPeriodStart())) {
             missing.add(new FieldError(ExtractedBill.PERIOD_END, "The billing period ends before it starts"));
         }
-        if (bill.getCurrentCharges() == null) {
+        UtilityAccount account = bill.getUtilityAccountId() == null ? null
+                : utilityAccounts.findById(bill.getUtilityAccountId()).orElse(null);
+        boolean plan = account != null && account.isEqualPaymentPlan();
+        if (plan) {
+            if (bill.getAmountDue() == null) {
+                missing.add(new FieldError(ExtractedBill.AMOUNT_DUE, "Enter the plan payment (amount due)"));
+            } else if (bill.getAmountDue().signum() <= 0) {
+                missing.add(new FieldError(ExtractedBill.AMOUNT_DUE, "The plan payment must be more than $0"));
+            }
+        } else if (bill.getCurrentCharges() == null) {
             missing.add(new FieldError(ExtractedBill.CURRENT_CHARGES, "Enter this period's charges"));
         } else if (bill.getCurrentCharges().signum() <= 0) {
             missing.add(new FieldError(ExtractedBill.CURRENT_CHARGES, "Current charges must be more than $0"));
@@ -132,8 +144,11 @@ public class BillReviewService {
                                     other.getOriginalFilename(), other.getPeriodStart(), other.getPeriodEnd()));
                 });
 
+        // The amount split with tenants is fixed now: the plan payment for plan accounts, else current charges.
+        bill.setSplitAmount(plan ? bill.getAmountDue() : bill.getCurrentCharges());
         bill.setStatus(BillStatus.VERIFIED);
         bill.setVerifiedAt(now());
+        draftInvoices.rebuildForBill(bill); // tenants' shares land on their OPEN invoices
         return mapper.toDetail(bill);
     }
 
@@ -142,12 +157,14 @@ public class BillReviewService {
         if (bill.getStatus() != BillStatus.VERIFIED) {
             return mapper.toDetail(bill);
         }
-        if (invoiceLines.existsByBillIdAndVoidedFalse(bill.getId())) {
-            throw new ConflictException("This bill is on an invoice. Void that invoice before un-verifying the bill.");
+        if (invoiceLines.countOnLockedInvoices(bill.getId()) > 0) {
+            throw new ConflictException("This bill is on an invoice that's no longer open. It can't be un-verified.");
         }
         bill.setVerifiedAt(null);
+        bill.setSplitAmount(null);
         bill.setStatus(BillStatus.NEEDS_REVIEW); // replaced by reevaluate
         reevaluate(bill);
+        draftInvoices.rebuildForBill(bill); // its charges leave the OPEN invoices
         return mapper.toDetail(bill);
     }
 

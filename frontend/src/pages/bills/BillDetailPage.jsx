@@ -7,7 +7,7 @@ import { ErrorState, LoadingState } from '../../components/ui/States'
 import { useApiData, useInterval } from '../../hooks/useApiData'
 import { useFormSubmit } from '../../hooks/useFormSubmit'
 import { deleteBill, extractBill, getBill, listAllUtilityAccounts, unverifyBill } from '../../lib/api'
-import { billBadge, formatDateTime, formatFileSize } from '../../lib/format'
+import { billBadge, formatDateTime, formatFileSize, formatMoney, splitBasisLabels } from '../../lib/format'
 import BillPreview from './BillPreview'
 import BillReviewForm, { fieldId } from './BillReviewForm'
 
@@ -137,9 +137,11 @@ export default function BillDetailPage() {
           )}
           {verified && (
             <Notice tone="success" title={`Verified on ${formatDateTime(bill.verifiedAt)}`}>
-              It can go on invoices. Un-verify it to make changes.
+              Tenants' shares are on their open invoices. Un-verify it to make changes. That works only while the
+              invoices are still open.
             </Notice>
           )}
+          {bill.utilityAccountId && <AmountToSplit bill={bill} />}
           {!verified && !reading && bill.issues.length > 0 && <IssueList issues={bill.issues} />}
           {!verified && !reading && bill.status === 'READY' && (
             <Notice tone="info" title="Everything checks out.">
@@ -162,6 +164,24 @@ export default function BillDetailPage() {
           <BillPreview bill={bill} />
         </div>
       </div>
+    </div>
+  )
+}
+
+/** The amount tenants' shares are worked out from, and which bill amount it is. */
+function AmountToSplit({ bill }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 rounded-lg border border-line bg-panel px-4 py-3 text-sm">
+      <span>
+        <span className="font-medium">Amount to split</span>
+        <span className="block text-ink-muted">
+          {splitBasisLabels[bill.splitBasis]}
+          {bill.equalPaymentPlan && ' · this account is on an equal payment plan'}
+        </span>
+      </span>
+      <span className="text-lg font-semibold tabular-nums">
+        {bill.amountToSplit != null ? formatMoney(bill.amountToSplit) : '—'}
+      </span>
     </div>
   )
 }

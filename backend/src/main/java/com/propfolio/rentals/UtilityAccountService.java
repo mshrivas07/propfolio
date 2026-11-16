@@ -53,7 +53,7 @@ public class UtilityAccountService {
         return accounts.findAllByLandlordId(landlordId).stream()
                 .map(a -> new UtilityAccountSummary(a.getId(), a.getPropertyId(),
                         propertyById.get(a.getPropertyId()).getName(), a.getUtilityType(), a.getProviderName(),
-                        a.getAccountNumber()))
+                        a.getAccountNumber(), a.isEqualPaymentPlan()))
                 .sorted(Comparator.comparing(UtilityAccountSummary::propertyName, String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(UtilityAccountSummary::utilityType)
                         .thenComparing(UtilityAccountSummary::providerName, String.CASE_INSENSITIVE_ORDER))
@@ -66,6 +66,7 @@ public class UtilityAccountService {
         UtilityAccount account = new UtilityAccount(landlordId, propertyId, request.utilityType(),
                 request.providerName().trim());
         account.setAccountNumber(RentalMapper.clean(request.accountNumber()));
+        account.setEqualPaymentPlan(request.onPlan());
         return RentalMapper.toResponse(accounts.save(account));
     }
 
@@ -74,6 +75,8 @@ public class UtilityAccountService {
         account.setUtilityType(request.utilityType());
         account.setProviderName(request.providerName().trim());
         account.setAccountNumber(RentalMapper.clean(request.accountNumber()));
+        // Affects bills verified from now on; a verified bill keeps the split amount it was verified with.
+        account.setEqualPaymentPlan(request.onPlan());
         return RentalMapper.toResponse(account);
     }
 

@@ -35,7 +35,9 @@ import com.propfolio.rentals.UtilityType;
  *
  * <p>Combined confidence = average reader confidence over the key fields (provider, account number,
  * period start/end, current charges), where a field the landlord typed or changed counts as 1.0
- * and a missing field as 0; then reduced by 15% for each failed rule. A bill is READY only when
+ * and a missing field as 0; then reduced by 15% for each failed rule. On an equal payment plan account
+ * the plan payment (amount due) is what gets split, so it takes the place of current charges, and the
+ * "amount due = current + previous" check is skipped. A bill is READY only when
  * there are no issues at all and the combined confidence reaches the threshold.
  */
 public final class BillChecks {
@@ -45,6 +47,9 @@ public final class BillChecks {
     private static final BigDecimal RULE_PENALTY = new BigDecimal("0.15");
     private static final List<String> KEY_FIELDS = List.of(PROVIDER_NAME, ACCOUNT_NUMBER, PERIOD_START, PERIOD_END,
             CURRENT_CHARGES);
+    /** On an equal payment plan the plan payment (amount due) is split, so it replaces current charges. */
+    private static final List<String> PLAN_KEY_FIELDS = List.of(PROVIDER_NAME, ACCOUNT_NUMBER, PERIOD_START, PERIOD_END,
+            AMOUNT_DUE);
     private static final List<String> REVIEWED_FIELDS = List.of(PROVIDER_NAME, ACCOUNT_NUMBER, PERIOD_START,
             PERIOD_END, CURRENT_CHARGES, PREVIOUS_BALANCE, AMOUNT_DUE, DUE_DATE);
     /** Words too common in provider names to show two providers are the same company. */
@@ -70,6 +75,7 @@ public final class BillChecks {
             List<Bill> overlapping, BigDecimal threshold) {
         List<ReviewIssue> issues = new ArrayList<>();
         int ruleFailures = 0;
+        boolean plan = account != null && account.isEqualPaymentPlan();
 
         if (extracted != null && !extracted.utilityBill()) {
             issues.add(new ReviewIssue(null, "This file doesn't look like a utility bill."));
@@ -103,7 +109,18 @@ public final class BillChecks {
 
         // Amounts
         BigDecimal current = bill.getCurrentCharges();
-        if (current == null) {
+        BigDecimal previous = bill.getPreviousBalance();
+        BigDecimal due = bill.getAmountDue();
+        if (plan) {
+            if (due == null) {
+                issues.add(new ReviewIssue(AMOUNT_DUE, "Enter the plan payment (amount due). It's what gets split."));
+                ruleFailures++;
+            } else if (due.signum() <= 0) {
+                issues.add(new ReviewIssue(AMOUNT_DUE, ("The plan payment is %s. Only amounts above $0 can be split "
+                        + "with tenants.").formatted(money(due))));
+                ruleFailures++;
+            }
+        } else if (current == null) {
             issues.add(new ReviewIssue(CURRENT_CHARGES, "Enter this period's charges."));
             ruleFailures++;
         } else if (current.signum() <= 0) {
@@ -111,9 +128,7 @@ public final class BillChecks {
                     + "with tenants.").formatted(money(current))));
             ruleFailures++;
         }
-        BigDecimal previous = bill.getPreviousBalance();
-        BigDecimal due = bill.getAmountDue();
-        if (current != null && previous != null && due != null
+        if (!plan && current != null && previous != null && due != null
                 && current.add(previous).subtract(due).abs().compareTo(AMOUNT_TOLERANCE) > 0) {
             issues.add(new ReviewIssue(AMOUNT_DUE, ("Amount due (%s) isn't current charges (%s) plus previous balance "
                     + "(%s). Check that current charges don't include an older balance.")
@@ -141,6 +156,17 @@ public final class BillChecks {
                     && billType != account.getUtilityType()) {
                 issues.add(new ReviewIssue("utilityAccountId", "This looks like %s bill, but it's linked to %s account."
                         .formatted(article(billType), article(account.getUtilityType()))));
+                ruleFailures++;
+            }
+            Boolean billOnPlan = extracted == null ? null : extracted.onPaymentPlan();
+            if (Boolean.TRUE.equals(billOnPlan) && !plan) {
+                issues.add(new ReviewIssue("utilityAccountId", "This bill looks like it's on an equal payment plan, but "
+                        + "the account isn't marked as one. Tick \"Equal payment plan\" on the account if tenants "
+                        + "should pay a share of the plan payment."));
+                ruleFailures++;
+            } else if (Boolean.FALSE.equals(billOnPlan) && plan) {
+                issues.add(new ReviewIssue("utilityAccountId", "The account is marked as an equal payment plan, but "
+                        + "this bill doesn't look like a plan bill."));
                 ruleFailures++;
             }
             if (bill.getProviderName() != null && !sameProvider(bill.getProviderName(), account.getProviderName())) {
@@ -175,15 +201,16 @@ public final class BillChecks {
             }
         }
 
+        List<String> keyFields = plan ? PLAN_KEY_FIELDS : KEY_FIELDS;
         BigDecimal sum = BigDecimal.ZERO;
-        for (String field : KEY_FIELDS) {
+        for (String field : keyFields) {
             if (currentValue(bill, field) == null) {
                 continue; // counts as 0
             }
             FieldReview review = fieldReview.get(field);
             sum = sum.add(review.edited() || review.confidence() == null ? BigDecimal.ONE : review.confidence());
         }
-        BigDecimal average = sum.divide(BigDecimal.valueOf(KEY_FIELDS.size()), 3, RoundingMode.HALF_UP);
+        BigDecimal average = sum.divide(BigDecimal.valueOf(keyFields.size()), 3, RoundingMode.HALF_UP);
         BigDecimal penalty = BigDecimal.ONE.subtract(RULE_PENALTY.multiply(BigDecimal.valueOf(ruleFailures)))
                 .max(BigDecimal.ZERO);
         BigDecimal confidence = average.multiply(penalty).setScale(3, RoundingMode.HALF_UP);

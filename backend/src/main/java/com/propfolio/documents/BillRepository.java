@@ -41,6 +41,22 @@ public interface BillRepository extends JpaRepository<Bill, UUID> {
     List<Bill> findOverlappingPeriod(@Param("utilityAccountId") UUID utilityAccountId,
             @Param("start") LocalDate start, @Param("end") LocalDate end, @Param("excludeId") UUID excludeId);
 
+    /**
+     * Verified bills on these utility accounts whose period overlaps [start, end] (inclusive):
+     * the bills a lease over those dates should be charged for.
+     */
+    @Query("""
+            select b from Bill b
+            where b.landlordId = :landlordId
+              and b.utilityAccountId in :utilityAccountIds
+              and b.status = com.propfolio.documents.BillStatus.VERIFIED
+              and b.periodStart <= :end and b.periodEnd >= :start
+            order by b.periodStart
+            """)
+    List<Bill> findVerifiedOverlapping(@Param("landlordId") UUID landlordId,
+            @Param("utilityAccountIds") List<UUID> utilityAccountIds,
+            @Param("start") LocalDate start, @Param("end") LocalDate end);
+
     /** Used by rentals to block deleting a utility account that already has bills. */
     boolean existsByUtilityAccountId(UUID utilityAccountId);
 }

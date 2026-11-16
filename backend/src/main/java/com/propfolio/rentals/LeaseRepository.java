@@ -19,6 +19,8 @@ public interface LeaseRepository extends JpaRepository<Lease, UUID> {
 
     List<Lease> findAllByLandlordIdAndUnitIdIn(UUID landlordId, List<UUID> unitIds);
 
+    List<Lease> findAllByUnitId(UUID unitId);
+
     boolean existsByUnitId(UUID unitId);
 
     boolean existsByTenantId(UUID tenantId);

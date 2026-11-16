@@ -15,6 +15,8 @@ public interface SplitRuleRepository extends JpaRepository<SplitRule, UUID> {
 
     List<SplitRule> findAllByUtilityAccountId(UUID utilityAccountId);
 
+    List<SplitRule> findAllByUnitId(UUID unitId);
+
     List<SplitRule> findAllByLandlordIdAndUtilityAccountIdIn(UUID landlordId, List<UUID> utilityAccountIds);
 
     void deleteAllByUnitId(UUID unitId);

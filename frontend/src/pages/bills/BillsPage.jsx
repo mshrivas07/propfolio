@@ -105,8 +105,10 @@ export default function BillsPage() {
                       </span>
                     </span>
                     <span className="flex items-center gap-3 text-sm text-ink-muted">
-                      {bill.currentCharges != null ? (
-                        <span className="font-medium tabular-nums text-ink">{formatMoney(bill.currentCharges)}</span>
+                      {(bill.amountToSplit ?? bill.currentCharges) != null ? (
+                        <span className="font-medium tabular-nums text-ink">
+                          {formatMoney(bill.amountToSplit ?? bill.currentCharges)}
+                        </span>
                       ) : (
                         <span>Uploaded {formatDateTime(bill.createdAt)}</span>
                       )}

@@ -83,6 +83,7 @@ function AccountRow({ account, onChanged }) {
           <span className="ml-2 text-sm text-ink-muted">
             {utilityTypeLabels[account.utilityType]}
             {account.accountNumber && ` · Account ${account.accountNumber}`}
+            {account.equalPaymentPlan && ' · Equal payment plan'}
           </span>
         </span>
         <span className="flex gap-3">
@@ -100,6 +101,7 @@ function AccountForm({ initial, submitLabel, onSave, onCancel }) {
     utilityType: initial?.utilityType ?? '',
     providerName: initial?.providerName ?? '',
     accountNumber: initial?.accountNumber ?? '',
+    equalPaymentPlan: initial?.equalPaymentPlan ?? false,
   })
   const { busy, error, fieldErrors, submit } = useFormSubmit()
   const set = (field) => (event) => setValues((v) => ({ ...v, [field]: event.target.value }))
@@ -128,6 +130,21 @@ function AccountForm({ initial, submitLabel, onSave, onCancel }) {
         onChange={set('accountNumber')}
         error={fieldErrors.accountNumber}
       />
+      <label className="flex items-start gap-2 text-sm sm:col-span-3">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4 accent-action"
+          checked={values.equalPaymentPlan}
+          onChange={(event) => setValues((v) => ({ ...v, equalPaymentPlan: event.target.checked }))}
+        />
+        <span>
+          <span className="font-medium">Equal payment plan</span>
+          <span className="block text-ink-muted">
+            You pay the same amount each month (budget billing). Tenants pay a share of that plan payment instead of
+            the period's actual charges. Applies to bills you verify from now on.
+          </span>
+        </span>
+      </label>
       <div className="space-y-3 sm:col-span-3">
         <FormProblem error={error} />
         <div className="flex gap-2">

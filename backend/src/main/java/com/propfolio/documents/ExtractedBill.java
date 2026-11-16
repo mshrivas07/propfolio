@@ -17,6 +17,8 @@ import com.propfolio.rentals.UtilityType;
  * What the reader (OpenAI) found on a bill. Stored as JSON in {@code bill.extraction_json}
  * exactly as the model returned it (snake_case keys, see resources/extraction/utility-bill-schema.json).
  *
+ * <p>{@code onPaymentPlan} is null when the bill (or an older reading) doesn't say.
+ *
  * <p>Parsing is lenient: a value that can't be understood (bad date, unknown type) becomes null
  * and is then flagged during review, rather than failing the whole bill.
  */
@@ -32,6 +34,7 @@ public record ExtractedBill(
         BigDecimal previousBalance,
         BigDecimal amountDue,
         LocalDate dueDate,
+        Boolean onPaymentPlan,
         Map<String, BigDecimal> confidence) {
 
     /** Field names used in API responses, review issues and the confidence map. */
@@ -106,6 +109,7 @@ public record ExtractedBill(
                 money(root.get("previous_balance")),
                 money(root.get("amount_due")),
                 date(root.get("due_date")),
+                root.get("on_payment_plan") instanceof Boolean plan ? plan : null,
                 Map.copyOf(confidence));
     }
 

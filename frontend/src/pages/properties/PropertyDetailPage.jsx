@@ -60,7 +60,13 @@ export default function PropertyDetailPage() {
             <h1 className="text-2xl font-semibold">{property.name}</h1>
             {formatAddress(property) && <p className="mt-1 text-ink-muted">{formatAddress(property)}</p>}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to={`/invoices?propertyId=${property.id}`}
+              className="mr-2 text-sm text-action underline-offset-4 hover:underline"
+            >
+              Invoices
+            </Link>
             <Button variant="secondary" onClick={() => setEditing(true)}>Edit</Button>
             <Button variant="danger" onClick={handleDelete} disabled={remove.busy}>Delete</Button>
           </div>

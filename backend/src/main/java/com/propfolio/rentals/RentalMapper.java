@@ -27,7 +27,7 @@ final class RentalMapper {
 
     static UtilityAccountResponse toResponse(UtilityAccount a) {
         return new UtilityAccountResponse(a.getId(), a.getPropertyId(), a.getUtilityType(),
-                a.getProviderName(), a.getAccountNumber());
+                a.getProviderName(), a.getAccountNumber(), a.isEqualPaymentPlan());
     }
 
     static SplitRuleResponse toResponse(SplitRule r) {

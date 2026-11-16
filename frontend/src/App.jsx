@@ -8,6 +8,8 @@ import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
 import BillDetailPage from './pages/bills/BillDetailPage'
 import BillsPage from './pages/bills/BillsPage'
+import InvoiceDetailPage from './pages/invoices/InvoiceDetailPage'
+import InvoicesPage from './pages/invoices/InvoicesPage'
 import PropertiesPage from './pages/properties/PropertiesPage'
 import PropertyDetailPage from './pages/properties/PropertyDetailPage'
 import TenantsPage from './pages/tenants/TenantsPage'
@@ -28,7 +30,8 @@ const router = createBrowserRouter([
           { path: 'tenants', element: <TenantsPage /> },
           { path: 'bills', element: <BillsPage /> },
           { path: 'bills/:billId', element: <BillDetailPage /> },
-          { path: 'invoices', element: <ComingSoonPage title="Invoices" phase={5} /> },
+          { path: 'invoices', element: <InvoicesPage /> },
+          { path: 'invoices/:invoiceId', element: <InvoiceDetailPage /> },
         ],
       },
     ],

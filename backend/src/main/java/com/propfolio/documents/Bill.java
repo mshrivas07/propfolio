@@ -81,6 +81,10 @@ public class Bill extends LandlordOwnedEntity {
     @Column(name = "previous_balance", precision = 12, scale = 2)
     private BigDecimal previousBalance;
 
+    /** The amount split with tenants, fixed when the bill is verified (see BillReviewService.verify). */
+    @Column(name = "split_amount", precision = 12, scale = 2)
+    private BigDecimal splitAmount;
+
     @Column(name = "extraction_requested_at")
     private Instant extractionRequestedAt;
 
@@ -269,5 +273,13 @@ public class Bill extends LandlordOwnedEntity {
 
     public void setExtractionError(String extractionError) {
         this.extractionError = extractionError;
+    }
+
+    public BigDecimal getSplitAmount() {
+        return splitAmount;
+    }
+
+    public void setSplitAmount(BigDecimal splitAmount) {
+        this.splitAmount = splitAmount;
     }
 }

@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.propfolio.billing.Invoice;
 import com.propfolio.billing.InvoiceRepository;
+import com.propfolio.billing.InvoiceStatus;
 import com.propfolio.common.error.ConflictException;
 import com.propfolio.documents.Bill;
 import com.propfolio.documents.BillRepository;
@@ -65,8 +66,10 @@ class DeleteRulesTest extends RentalServiceTestBase {
     @Test
     void leaseWithInvoicesCannotBeDeleted() {
         var lease = leaseService.create(data.upper.id(), lease(data.tenant, "2026-01-01", null));
-        invoices.save(new Invoice(landlordId, "INV-2026-0002", lease.id(), data.upper.id(),
-                LocalDate.parse("2026-01-01"), LocalDate.parse("2026-01-31")));
+        Invoice locked = new Invoice(landlordId, "INV-2026-0002", lease.id(), data.upper.id(),
+                LocalDate.parse("2026-01-01"), LocalDate.parse("2026-01-31"));
+        locked.setStatus(InvoiceStatus.EMAIL_DRAFTED); // beyond OPEN: the tenant has been invoiced
+        invoices.save(locked);
 
         assertThatThrownBy(() -> leaseService.delete(lease.id()))
                 .isInstanceOf(ConflictException.class)

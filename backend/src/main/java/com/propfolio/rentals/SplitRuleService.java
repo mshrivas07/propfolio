@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.propfolio.billing.DraftInvoiceService;
 import com.propfolio.common.error.ConflictException;
 import com.propfolio.common.error.InvalidRequestException;
 import com.propfolio.common.error.NotFoundException;
@@ -32,13 +33,15 @@ public class SplitRuleService {
     private final SplitRuleRepository splitRules;
     private final UnitService unitService;
     private final UtilityAccountService utilityAccountService;
+    private final DraftInvoiceService draftInvoices;
 
     public SplitRuleService(CurrentLandlord currentLandlord, SplitRuleRepository splitRules,
-            UnitService unitService, UtilityAccountService utilityAccountService) {
+            UnitService unitService, UtilityAccountService utilityAccountService, DraftInvoiceService draftInvoices) {
         this.currentLandlord = currentLandlord;
         this.splitRules = splitRules;
         this.unitService = unitService;
         this.utilityAccountService = utilityAccountService;
+        this.draftInvoices = draftInvoices;
     }
 
     /** Creates the rule for this unit + account, or replaces the one that exists. */
@@ -76,7 +79,9 @@ public class SplitRuleService {
                         request.shareValue()));
         rule.setShareType(request.shareType());
         rule.setShareValue(request.shareValue());
-        return RentalMapper.toResponse(splitRules.save(rule));
+        SplitRule saved = splitRules.save(rule);
+        draftInvoices.rebuildForUnit(unit.getId());
+        return RentalMapper.toResponse(saved);
     }
 
     public void delete(UUID ruleId) {
@@ -84,6 +89,7 @@ public class SplitRuleService {
         SplitRule rule = splitRules.findByIdAndLandlordId(ruleId, landlordId)
                 .orElseThrow(() -> new NotFoundException("Split rule"));
         splitRules.delete(rule);
+        draftInvoices.rebuildForUnit(rule.getUnitId());
     }
 
     /** Sum of PERCENT rules (FLAT rules are ignored). */

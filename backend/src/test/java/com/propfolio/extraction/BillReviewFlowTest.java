@@ -37,6 +37,7 @@ import com.propfolio.billing.Invoice;
 import com.propfolio.billing.InvoiceLine;
 import com.propfolio.billing.InvoiceLineRepository;
 import com.propfolio.billing.InvoiceRepository;
+import com.propfolio.billing.InvoiceStatus;
 import com.propfolio.documents.Bill;
 import com.propfolio.documents.BillRepository;
 import com.propfolio.documents.BillReviewService;
@@ -233,15 +234,17 @@ class BillReviewFlowTest {
         mockMvc.perform(post("/api/bills/" + billId + "/verify").with(alice)).andExpect(status().isOk());
 
         UUID unitId = UUID.randomUUID();
-        Invoice invoice = invoices.save(new Invoice(aliceId, "INV-T-" + UUID.randomUUID(), UUID.randomUUID(), unitId,
-                LocalDate.parse("2026-09-01"), LocalDate.parse("2026-09-30")));
+        Invoice locked = new Invoice(aliceId, "INV-T-" + UUID.randomUUID(), UUID.randomUUID(), unitId,
+                LocalDate.parse("2026-09-01"), LocalDate.parse("2026-09-30"));
+        locked.setStatus(InvoiceStatus.EMAIL_DRAFTED); // no longer OPEN
+        Invoice invoice = invoices.save(locked);
         InvoiceLine line = invoiceLines.save(new InvoiceLine(aliceId, invoice.getId(), UUID.fromString(billId), unitId,
                 LocalDate.parse("2026-09-01"), LocalDate.parse("2026-09-30"), 30, 30, ShareType.PERCENT,
                 new BigDecimal("70"), new BigDecimal("84.00")));
 
         mockMvc.perform(post("/api/bills/" + billId + "/unverify").with(alice))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Void that invoice")));
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("no longer open")));
 
         line.setVoided(true);
         invoiceLines.save(line);

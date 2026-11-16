@@ -30,6 +30,10 @@ public class UtilityAccount extends LandlordOwnedEntity {
     @Column(name = "account_number")
     private String accountNumber;
 
+    /** On an equal/budget payment plan: tenants pay a share of the plan payment (the bill's amount due). */
+    @Column(name = "equal_payment_plan", nullable = false)
+    private boolean equalPaymentPlan;
+
     protected UtilityAccount() {
         // for JPA
     }
@@ -71,5 +75,13 @@ public class UtilityAccount extends LandlordOwnedEntity {
 
     public void setAccountNumber(String accountNumber) {
         this.accountNumber = accountNumber;
+    }
+
+    public boolean isEqualPaymentPlan() {
+        return equalPaymentPlan;
+    }
+
+    public void setEqualPaymentPlan(boolean equalPaymentPlan) {
+        this.equalPaymentPlan = equalPaymentPlan;
     }
 }

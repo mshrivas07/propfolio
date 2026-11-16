@@ -1,5 +1,6 @@
 package com.propfolio.documents;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import com.propfolio.documents.web.BillDtos.BillResponse;
 import com.propfolio.documents.web.BillDtos.ExtractionState;
+import com.propfolio.documents.web.BillDtos.SplitBasis;
 import com.propfolio.rentals.Property;
 import com.propfolio.rentals.PropertyRepository;
 import com.propfolio.rentals.UtilityAccount;
@@ -117,6 +119,11 @@ public class BillResponseMapper {
             ExtractionState state = extractionState(bill);
             BillChecks.Result review = detail ? review(bill) : null;
             ExtractedBill extracted = detail ? extracted(bill) : null;
+            boolean plan = account != null && account.isEqualPaymentPlan();
+            SplitBasis basis = plan ? SplitBasis.PLAN_PAYMENT : SplitBasis.CURRENT_CHARGES;
+            BigDecimal amountToSplit = bill.getStatus() == BillStatus.VERIFIED && bill.getSplitAmount() != null
+                    ? bill.getSplitAmount()
+                    : plan ? bill.getAmountDue() : bill.getCurrentCharges();
             return new BillResponse(bill.getId(), bill.getStatus(), state, extractionError(bill, state),
                     bill.getExtractedAt(), bill.getOriginalFilename(), bill.getContentType(), bill.getFileSizeBytes(),
                     bill.getUtilityAccountId(),
@@ -128,7 +135,8 @@ public class BillResponseMapper {
                     bill.getProviderName(), bill.getAccountNumber(),
                     extracted == null ? null : extracted.utilityType(),
                     bill.getPeriodStart(), bill.getPeriodEnd(), bill.getCurrentCharges(), bill.getPreviousBalance(),
-                    bill.getAmountDue(), bill.getDueDate(), bill.getConfidence(),
+                    bill.getAmountDue(), bill.getDueDate(), plan, basis, amountToSplit, bill.getSplitAmount(),
+                    bill.getConfidence(),
                     review == null ? Map.of() : review.fieldReview(),
                     review == null ? List.of() : review.issues(),
                     bill.getVerifiedAt(), bill.getCreatedAt());

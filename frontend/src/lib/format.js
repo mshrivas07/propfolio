@@ -59,3 +59,27 @@ export function billBadge(bill) {
   if (bill.extractionState === 'FAILED') return { label: 'Reading failed', tone: 'danger' }
   return { label: 'Not read yet', tone: 'neutral' }
 }
+
+/** "Sep 1 – Sep 23, 2026"-style range; empty when either end is missing. */
+export function formatPeriod(start, end) {
+  return start && end ? `${formatDate(start)} – ${formatDate(end)}` : ''
+}
+
+export const invoiceStatusLabels = {
+  OPEN: 'Open',
+  EMAIL_DRAFTED: 'Email drafted',
+  PARTIALLY_PAID: 'Partially paid',
+  PAID: 'Paid',
+  VOID: 'Void',
+}
+
+const invoiceTones = { OPEN: 'info', EMAIL_DRAFTED: 'neutral', PARTIALLY_PAID: 'attention', PAID: 'success', VOID: 'neutral' }
+
+export function invoiceBadge(invoice) {
+  return { label: invoiceStatusLabels[invoice.status] ?? invoice.status, tone: invoiceTones[invoice.status] ?? 'neutral' }
+}
+
+export const splitBasisLabels = {
+  PLAN_PAYMENT: 'Plan payment (amount due)',
+  CURRENT_CHARGES: 'Current charges',
+}

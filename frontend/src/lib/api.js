@@ -134,4 +134,16 @@ export const verifyBill = (id) => apiPost(`/api/bills/${id}/verify`)
 export const unverifyBill = (id) => apiPost(`/api/bills/${id}/unverify`)
 
 /** The original file as a Blob (fetched with the token, so it can't be a plain link). */
+// Invoices
+export function listInvoices({ status, propertyId, tenantId } = {}) {
+  const params = new URLSearchParams()
+  if (status) params.set('status', status)
+  if (propertyId) params.set('propertyId', propertyId)
+  if (tenantId) params.set('tenantId', tenantId)
+  const query = params.toString()
+  return apiGet(`/api/invoices${query ? `?${query}` : ''}`)
+}
+export const getInvoice = (id) => apiGet(`/api/invoices/${id}`)
+export const updateInvoiceDueDate = (id, dueDate) => apiPut(`/api/invoices/${id}/due-date`, { dueDate })
+
 export const fetchBillFile = (id) => request('GET', `/api/bills/${id}/file`, undefined, { responseType: 'blob' })

@@ -19,6 +19,10 @@ Rules:
 - utility_type: ELECTRICITY, GAS, WATER (includes wastewater/sewer), INTERNET, or OTHER.
   If one bill clearly combines several services, use OTHER.
 - service_address: the address being serviced, if printed.
+- on_payment_plan: true if the bill shows an equal / budget / levelized monthly payment plan
+  (e.g. "Equal Monthly Payment Plan", "EMPP", "budget billing"), where the amount due is a fixed
+  plan installment rather than the period's charges. false if it clearly isn't; null if unclear.
+  Still report current_charges as the actual charges for the period.
 - is_utility_bill: false if the document is not a utility bill at all.
 - confidence: for every field, a number from 0 to 1 for how sure you are the value is correct.
   Use a low number when text is blurry, cut off, ambiguous, or you had to choose between several

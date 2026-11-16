@@ -110,6 +110,9 @@ function TenantRow({ tenant, onChanged }) {
           </p>
         </div>
         <div className="flex gap-3">
+          <Link to={`/invoices?tenantId=${tenant.id}`} className="text-sm text-action underline-offset-4 hover:underline">
+            Invoices
+          </Link>
           <Button variant="link" onClick={() => setEditing(true)}>Edit</Button>
           <Button variant="link" className="text-danger" onClick={handleDelete} disabled={remove.busy}>Delete</Button>
         </div>

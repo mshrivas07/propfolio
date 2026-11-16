@@ -5,6 +5,7 @@ import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import com.propfolio.common.persistence.LandlordOwnedEntity;
 
@@ -12,7 +13,9 @@ import com.propfolio.common.persistence.LandlordOwnedEntity;
  * Next invoice number per landlord per year (INV-YYYY-NNNN).
  */
 @Entity
-@Table(name = "invoice_number_sequence")
+// Mirrors invoice_number_sequence_unique in the migration, so the test database enforces it too.
+@Table(name = "invoice_number_sequence", uniqueConstraints = @UniqueConstraint(name = "invoice_number_sequence_unique",
+        columnNames = {"landlord_id", "sequence_year"}))
 public class InvoiceNumberSequence extends LandlordOwnedEntity {
 
     @Column(name = "sequence_year", nullable = false)

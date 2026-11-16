@@ -29,15 +29,17 @@ public class Invoice extends LandlordOwnedEntity {
     @Column(name = "unit_id", nullable = false)
     private UUID unitId;
 
-    @Column(name = "period_start", nullable = false)
+    /** Earliest covered date of its charges; null while an OPEN invoice has no charges. */
+    @Column(name = "period_start")
     private LocalDate periodStart;
 
-    @Column(name = "period_end", nullable = false)
+    /** Latest covered date of its charges; null while an OPEN invoice has no charges. */
+    @Column(name = "period_end")
     private LocalDate periodEnd;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private InvoiceStatus status = InvoiceStatus.DRAFT;
+    private InvoiceStatus status = InvoiceStatus.OPEN;
 
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount = BigDecimal.ZERO;

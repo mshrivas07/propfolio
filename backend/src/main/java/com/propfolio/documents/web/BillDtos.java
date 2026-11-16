@@ -22,6 +22,14 @@ public final class BillDtos {
     private BillDtos() {
     }
 
+    /** Which bill amount is split with tenants. */
+    public enum SplitBasis {
+        /** Equal payment plan account: the plan payment (amount due). */
+        PLAN_PAYMENT,
+        /** Everything else: this period's charges. */
+        CURRENT_CHARGES
+    }
+
     /** Where reading the bill (OpenAI extraction) stands. Derived, not stored. */
     public enum ExtractionState {
         /** Never requested (e.g. uploaded before Phase 4, or auto-reading is off). */
@@ -38,7 +46,10 @@ public final class BillDtos {
      * values when there is one, otherwise what was read from the bill. {@code billProviderName} /
      * {@code billAccountNumber} are the values on the bill itself (editable during review).
      *
-     * <p>{@code fieldReview} and {@code issues} are filled for single-bill responses only;
+     * <p>{@code amountToSplit} is what tenants' shares are worked out from: the stored {@code splitAmount}
+ * once verified, otherwise a preview from the current values ({@code splitBasis} says which amount).
+ *
+ * <p>{@code fieldReview} and {@code issues} are filled for single-bill responses only;
      * list responses leave them empty.
      */
     public record BillResponse(
@@ -65,6 +76,10 @@ public final class BillDtos {
             BigDecimal previousBalance,
             BigDecimal amountDue,
             LocalDate dueDate,
+            boolean equalPaymentPlan,
+            SplitBasis splitBasis,
+            BigDecimal amountToSplit,
+            BigDecimal splitAmount,
             BigDecimal confidence,
             Map<String, FieldReview> fieldReview,
             List<ReviewIssue> issues,

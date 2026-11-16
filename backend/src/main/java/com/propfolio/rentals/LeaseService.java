@@ -12,7 +12,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.propfolio.billing.DraftInvoiceService;
 import com.propfolio.billing.InvoiceRepository;
+import com.propfolio.billing.InvoiceStatus;
 import com.propfolio.common.error.ConflictException;
 import com.propfolio.common.error.InvalidRequestException;
 import com.propfolio.common.error.NotFoundException;
@@ -27,6 +29,7 @@ import com.propfolio.security.CurrentLandlord;
  *
  * <p>Rules: end date on or after start date; leases on the same unit never overlap
  * (one active lease per unit; roommates are one tenant with several emails).
+ * Every change recalculates the lease's OPEN invoice.
  */
 @Service
 @Transactional
@@ -38,19 +41,22 @@ public class LeaseService {
     private final TenantRepository tenants;
     private final PropertyRepository properties;
     private final InvoiceRepository invoices;
+    private final DraftInvoiceService draftInvoices;
     private final Clock clock;
 
     /** Stands in for "no end date" in overlap checks (inside Postgres' date range). */
     static final LocalDate OPEN_ENDED = LocalDate.of(9999, 12, 31);
 
     public LeaseService(CurrentLandlord currentLandlord, LeaseRepository leases, UnitRepository units,
-            TenantRepository tenants, PropertyRepository properties, InvoiceRepository invoices, Clock clock) {
+            TenantRepository tenants, PropertyRepository properties, InvoiceRepository invoices,
+            DraftInvoiceService draftInvoices, Clock clock) {
         this.currentLandlord = currentLandlord;
         this.leases = leases;
         this.units = units;
         this.tenants = tenants;
         this.properties = properties;
         this.invoices = invoices;
+        this.draftInvoices = draftInvoices;
         this.clock = clock;
     }
 
@@ -72,7 +78,9 @@ public class LeaseService {
 
         Lease lease = new Lease(landlordId, unit.getId(), request.tenantId(), request.startDate());
         lease.setEndDate(request.endDate());
-        return toResponses(List.of(leases.save(lease))).getFirst();
+        Lease saved = leases.save(lease);
+        draftInvoices.rebuildLease(saved); // charges for bills already verified
+        return toResponses(List.of(saved)).getFirst();
     }
 
     public LeaseResponse update(UUID leaseId, LeaseUpdateRequest request) {
@@ -85,16 +93,18 @@ public class LeaseService {
 
         lease.setStartDate(request.startDate());
         lease.setEndDate(request.endDate());
+        draftInvoices.rebuildLease(lease); // locked invoices don't change; the OPEN one recalculates
         return toResponses(List.of(lease)).getFirst();
     }
 
     public void delete(UUID leaseId) {
         UUID landlordId = currentLandlord.id();
         Lease lease = requireLease(leaseId, landlordId);
-        if (invoices.existsByLeaseId(lease.getId())) {
+        if (invoices.existsByLeaseIdAndStatusNot(lease.getId(), InvoiceStatus.OPEN)) {
             throw new ConflictException(
                     "This lease has invoices, so it can't be deleted. Set an end date to end it instead.");
         }
+        draftInvoices.removeOpenInvoice(lease);
         leases.delete(lease);
     }
 

@@ -15,7 +15,7 @@ const FIELDS = [
     name: 'currentCharges',
     label: 'Current charges ($)',
     type: 'number',
-    note: "This period only, including tax. It's the amount split with tenants.",
+    note: 'This period only, including tax.',
   },
   { name: 'previousBalance', label: 'Previous balance ($)', type: 'number', note: 'Carried over from earlier bills.' },
   { name: 'amountDue', label: 'Amount due ($)', type: 'number' },
@@ -76,6 +76,8 @@ export default function BillReviewForm({ bill, accounts, disabled, onSaved }) {
     if (ok) onSaved(updated)
   }
 
+  const chosenAccount = accounts.find((a) => a.id === values.utilityAccountId)
+  const onPlan = chosenAccount ? Boolean(chosenAccount.equalPaymentPlan) : Boolean(bill.equalPaymentPlan)
   const review = bill.fieldReview ?? {}
   const read = Boolean(bill.extractedAt)
 
@@ -105,6 +107,8 @@ export default function BillReviewForm({ bill, accounts, disabled, onSaved }) {
       <div className="grid gap-4 sm:grid-cols-2">
         {FIELDS.map((field) => {
           const info = review[field.name]
+          const splitField = (onPlan ? 'amountDue' : 'currentCharges') === field.name
+          const note = splitField ? [field.note, "It's the amount split with tenants."].filter(Boolean).join(' ') : field.note
           return (
             <TextField
               key={field.name}
@@ -119,7 +123,7 @@ export default function BillReviewForm({ bill, accounts, disabled, onSaved }) {
               error={save.fieldErrors[field.name]}
               inputClassName={info?.lowConfidence ? 'ring-2 ring-attention/60 bg-attention/5' : ''}
               className={field.name === 'currentCharges' ? 'sm:col-span-2' : ''}
-              hint={<FieldHint info={info} read={read} note={field.note} />}
+              hint={<FieldHint info={info} read={read} note={note} />}
             />
           )
         })}

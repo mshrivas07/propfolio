@@ -42,19 +42,21 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - Flat amounts are prorated the same way as percentages.
 - Direction is landlord → tenant only. (A landlord who is reimbursed by their own landlord models that person as a tenant.)
 
-## Proration and allocation
+## Proration and charges (decided in Phase 5A; replaces the earlier monthly / spread-across-months rules)
 
-- Daily-rate allocation: `daily rate = bill amount ÷ days in bill period`.
-- Day counting: calendar days, start and end dates **inclusive**.
-- A tenant pays `share × daily rate × days their lease overlaps the invoice period`.
-- The landlord absorbs vacant days.
-- Each invoice line is rounded to the cent.
-- Multi-month bills (e.g. quarterly water) are spread across monthly auto-drafts by day overlap.
-- FLAT split amounts are **per bill**, prorated by the lease's days within the bill period
-  (e.g. $50 internet, tenant present 15 of 30 days → $25). A multi-month bill's flat amount is
-  spread across monthly drafts by day overlap, the same as PERCENT. (Decided in Phase 3.)
-- Lease dates stay editable after invoicing. Existing invoices don't change; DRAFT invoices recalculate.
-  (Decided in Phase 3.)
+- **Bill by bill.** A bill is never split across calendar months. Each lease that overlaps a verified bill's
+  period gets one **charge** (`invoice_line`) for that bill.
+- `PERCENT`: `split amount × percent ÷ 100 × days covered ÷ bill period days`.
+- `FLAT`: `flat amount × days covered ÷ bill period days` — a flat amount is **per bill**
+  (e.g. $50 internet, tenant present 15 of 30 days → $25).
+- Days covered = days the lease overlaps the bill period. Calendar days, start and end **inclusive**.
+- Rounded **once**, to the cent, half up. Vacant days aren't charged; the landlord absorbs them.
+- Two tenants in one bill period (move-out/move-in) each pay for their own days.
+- **Equal payment plan** (`utility_account.equal_payment_plan`): the split amount is the bill's
+  `amount_due` (the plan payment); otherwise it's `current_charges`. Fixed as `bill.split_amount` when the
+  bill is verified, so later flag changes affect only bills verified afterwards.
+- Lease dates stay editable after invoicing. Locked (non-OPEN) invoices never change; the OPEN invoice
+  recalculates.
 
 ## Rental setup (decided in Phase 2)
 
@@ -107,23 +109,35 @@ Recorded in Phase 0. Change a decision here first, then in code.
   The UI fetches it with the token and shows it from a blob URL.
 - A bill can't be deleted once `VERIFIED` or once it appears on an invoice line.
 
-## Invoices
+## Invoices (decided in Phase 5A; replaces monthly auto-drafts and custom date ranges)
 
-- Monthly auto-drafts plus custom from/to date ranges.
-- Auto-drafts: when a bill becomes `VERIFIED`, create or recalculate the `DRAFT` invoice for each affected unit/month.
+- Each lease has **one `OPEN` invoice** that collects its charges as bills are verified. It's created with the
+  first charge and **kept when it becomes empty**, so invoice numbers have no gaps.
+- The OPEN invoice is **rebuilt, not patched**, whenever something affecting charges changes: a bill is verified
+  or un-verified, a split rule is saved or deleted, a lease is created, edited or deleted.
+  Expected charges = the lease's share of every verified bill (on its unit's split-rule accounts) overlapping
+  the lease, minus bills already charged to that lease on a locked (non-OPEN, non-void) invoice. Rebuilding twice changes nothing.
+- Invoice period = earliest to latest covered date of its charges (empty while it has none).
+- Due date = creation date + 15 days; editable while OPEN.
+- Un-verifying a bill is allowed while its charges are only on OPEN invoices (they're removed), and blocked
+  once a charge is on a locked invoice.
+- A lease whose only invoice is OPEN can be deleted (the OPEN invoice goes with it); once invoiced, it can't.
+- Number format `INV-YYYY-NNNN`, one sequence per landlord per year across all properties. The sequence row is
+  locked while a number is taken, so concurrent requests never share a number.
 - Nothing goes to Gmail until the user clicks **Create Gmail draft**.
-- Number format `INV-YYYY-NNNN`, one sequence across all properties.
 - No tax in MVP1.
-- Statuses: `DRAFT` → `EMAIL_DRAFTED` → `PARTIALLY_PAID` → `PAID`, plus `VOID`.
-- An invoice is locked once `EMAIL_DRAFTED`; corrections mean void and reissue.
-- Double-billing protection: each `invoice_line` records `bill_id` + covered date range; overlapping ranges for the same bill and unit are blocked unless the earlier invoice is `VOID`.
+- Statuses in 5A: `OPEN`, plus the old `EMAIL_DRAFTED`, `PARTIALLY_PAID`, `PAID`, `VOID` until Phase 5B reworks
+  them (OPEN → INVOICE_CREATED → EMAIL_DRAFTED → SENT → PARTIALLY_PAID → PAID → ARCHIVED, plus CANCELLED).
+- Double-billing protection: each `invoice_line` records `bill_id` + covered date range; overlapping ranges for
+  the same bill and unit are blocked unless the line is void.
 
 ## Bills: reading and verification (decided in Phase 4)
 
 - Statuses: `UPLOADED` → `READY` / `NEEDS_REVIEW` → `VERIFIED`. Status is re-evaluated after every reading
   and every edit. `EXTRACTED` is not used as a resting state. Only `VERIFIED` bills feed invoices.
 - **The split amount is `current_charges`** (this period's charges incl. tax), not `amount_due`, which can
-  include a previous balance or credits. Both are stored, plus `previous_balance`.
+  include a previous balance or credits. Both are stored, plus `previous_balance`. Exception (Phase 5A):
+  equal payment plan accounts split `amount_due`, the plan payment.
 - Reading runs automatically in the background after the upload commits (`app.bills.auto-extract`),
   two at a time, on a small thread pool. "Read again" / "Read bill" re-runs it and replaces the read fields.
 - Reading state is derived from `extraction_requested_at`, `extracted_at` and `extraction_error`:
@@ -147,7 +161,10 @@ Recorded in Phase 0. Change a decision here first, then in code.
   a different number on the bill makes it `NEEDS_REVIEW`.
 - Verify needs utility account, billing period (end ≥ start) and current charges > 0 (all missing fields are
   reported together), and is blocked when another verified bill on the same account overlaps those days.
-- A verified bill can't be edited or re-read. It can be un-verified only while it isn't on a non-void invoice line.
+- A verified bill can't be edited or re-read. It can be un-verified only while its charges are on OPEN invoices only.
+- Plan accounts (Phase 5A): the plan payment (amount due) replaces current charges in the "present and > 0" rule,
+  in the combined confidence and at verify; the "amount due = current + previous" check is skipped. The reader
+  reports `on_payment_plan`; a disagreement with the account's flag is a review issue.
 
 ## Sending
 

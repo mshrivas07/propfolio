@@ -1,10 +1,11 @@
 package com.propfolio.billing;
 
 /**
- * Invoice lifecycle. An invoice is locked once EMAIL_DRAFTED.
+ * Invoice lifecycle. OPEN collects a lease's charges as bills are verified (Phase 5A).
+ * The remaining statuses are reworked in Phase 5B.
  */
 public enum InvoiceStatus {
-    DRAFT,
+    OPEN,
     EMAIL_DRAFTED,
     PARTIALLY_PAID,
     PAID,
