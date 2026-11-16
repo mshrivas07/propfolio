@@ -6,6 +6,8 @@ import ComingSoonPage from './pages/ComingSoonPage'
 import DashboardPage from './pages/DashboardPage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
+import BillDetailPage from './pages/bills/BillDetailPage'
+import BillsPage from './pages/bills/BillsPage'
 import PropertiesPage from './pages/properties/PropertiesPage'
 import PropertyDetailPage from './pages/properties/PropertyDetailPage'
 import TenantsPage from './pages/tenants/TenantsPage'
@@ -24,7 +26,8 @@ const router = createBrowserRouter([
           { path: 'properties', element: <PropertiesPage /> },
           { path: 'properties/:propertyId', element: <PropertyDetailPage /> },
           { path: 'tenants', element: <TenantsPage /> },
-          { path: 'bills', element: <ComingSoonPage title="Bills" phase={3} /> },
+          { path: 'bills', element: <BillsPage /> },
+          { path: 'bills/:billId', element: <BillDetailPage /> },
           { path: 'invoices', element: <ComingSoonPage title="Invoices" phase={5} /> },
         ],
       },

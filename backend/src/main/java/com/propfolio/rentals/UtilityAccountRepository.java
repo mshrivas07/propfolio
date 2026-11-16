@@ -13,6 +13,8 @@ public interface UtilityAccountRepository extends JpaRepository<UtilityAccount, 
     List<UtilityAccount> findAllByLandlordIdAndPropertyIdOrderByUtilityTypeAscProviderNameAsc(
             UUID landlordId, UUID propertyId);
 
+    List<UtilityAccount> findAllByLandlordId(UUID landlordId);
+
     boolean existsByPropertyId(UUID propertyId);
 
     long countByPropertyId(UUID propertyId);

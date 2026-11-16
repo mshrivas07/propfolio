@@ -254,4 +254,143 @@ Frontend (`frontend/src/`)
 ### Supabase migrations applied
 
 - [x] `202610010001_initial_schema.sql`
-- [ ] `202610200001_lease_no_overlap.sql`
+- [x] `202610200001_lease_no_overlap.sql`
+
+## Phase 3 — Document ingestion ✅
+
+Branch: `feature/1.0.1_1` (merge to `release/1.0.1` after review)
+
+### API
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/bills` | Upload one file (multipart `file`, optional `utilityAccountId`) → 201 |
+| GET | `/api/bills?status=&propertyId=` | List, newest first, optional filters |
+| GET | `/api/bills/{id}` | One bill |
+| GET | `/api/bills/{id}/file` | The original file, inline |
+| DELETE | `/api/bills/{id}` | Delete row and file (409 once verified or invoiced) |
+| GET | `/api/utility-accounts` | All utility accounts with property names (upload picker) |
+
+### Files created
+
+Backend — main (`backend/src/main/java/com/propfolio/`)
+- `documents/BillFileType.java` — PDF / PNG / JPEG detection by signature
+- `documents/BillService.java`
+- `documents/storage/` — `StorageService`, `LocalStorageService`, `StorageProperties`, `StorageException`
+- `documents/web/` — `BillController`, `BillDtos`
+
+Backend — test (`backend/src/test/java/com/propfolio/documents/`)
+- `TestFiles` (tiny made-up files; never real bills)
+- `BillFileTypeTest`, `storage/LocalStorageServiceTest`, `BillControllerTest`, `BillUploadRollbackTest`
+
+Frontend (`frontend/src/`)
+- `components/ui/Badge.jsx`
+- `pages/bills/` — `BillsPage`, `BillUploader`, `BillDetailPage`, `BillPreview`
+
+### Files modified
+
+- `.gitignore` — bill folders anchored (`/storage/`, `/backend/storage/`); the old `storage/` rule also ignored Java packages named `storage`
+- `backend/.../documents/Bill.java` — `@UniqueConstraint` mirroring `bill_file_unique` (so the test database enforces it)
+- `backend/.../documents/BillRepository.java` — landlord-scoped finders, duplicate lookup, filtered lists
+- `backend/.../billing/InvoiceLineRepository.java` — `existsByBillId`
+- `backend/.../common/error/ConflictException.java`, `GlobalExceptionHandler.java` — optional extra ProblemDetail properties
+- `backend/.../rentals/UtilityAccountRepository.java`, `UtilityAccountService.java`, `web/UtilityAccountController.java`, `web/UtilityAccountDtos.java` — `GET /api/utility-accounts`
+- `backend/src/main/resources/application.yml` — multipart limit 12 MB (service enforces 10 MB), storage comment
+- `backend/src/test/resources/application-test.yml` — test storage folder in the system temp directory
+- `frontend/src/lib/api.js` — FormData uploads, blob downloads, `ApiError.problem`, bill endpoints
+- `frontend/src/lib/format.js` — date-time, file size, bill status labels and tones
+- `frontend/src/App.jsx` — `/bills` and `/bills/:billId` routes
+- `docs/DECISIONS.md` — ingestion decisions; FLAT-per-bill and editable-lease decisions; open questions removed
+- `docs/PROGRESS.md` — this entry
+
+### What was verified in the scaffolding environment
+
+- Frontend production build.
+- Bills list, uploader (uploaded / duplicate / rejected states) and bill detail with preview rendered
+  against a stubbed API at desktop and phone widths.
+- Not verified there: `mvn test` (no Maven Central access) — run locally.
+
+### Deferred
+
+- Extraction, matching and verification → Phase 4
+- Paging on the bills list → when needed
+- Cloud storage implementation → MVP2
+
+### Supabase migrations applied
+
+- [x] `202610010001_initial_schema.sql`
+- [x] `202610200001_lease_no_overlap.sql`
+- (no new migration in Phase 3)
+
+## Phase 4 — Extraction and verification ✅
+
+Branch: `feature/1.0.1_1` (merge to `release/1.0.1` after review)
+
+### API
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/bills/{id}` | Now includes reading state, read values, per-field confidence and review issues |
+| PUT | `/api/bills/{id}/fields` | Save review edits (all fields replaced) → status re-evaluated |
+| POST | `/api/bills/{id}/extract` | Read the bill (again) in the background |
+| POST | `/api/bills/{id}/verify` | Verify (400 lists every missing field; 409 if overlapping a verified bill) |
+| POST | `/api/bills/{id}/unverify` | Un-verify (409 while on a live invoice) |
+
+### Files created
+
+Database
+- `supabase/migrations/202610290001_bill_extraction_fields.sql`
+
+Backend — main (`backend/src/main/java/com/propfolio/`)
+- `documents/` — `BillChecks`, `BillReviewService`, `BillResponseMapper`, `ExtractedBill`, `AccountNumbers`,
+  `BillProcessingProperties`, `BillExtractionRequested`
+- `documents/web/BillReviewController.java`
+- `extraction/` — `OpenAiBillReader`, `OpenAiProperties`, `ExtractionConfig`, `ExtractionExecutor`,
+  `ExtractionTrigger`, `BillExtractionJob`, `ExtractionException`
+- `backend/src/main/resources/extraction/instructions.md`, `utility-bill-schema.json`
+
+Backend — test
+- `documents/` — `TestReadings`, `ExtractedBillTest`, `BillChecksTest`
+- `extraction/` — `OpenAiBillReaderTest`, `BillReviewFlowTest`
+
+Frontend (`frontend/src/`)
+- `pages/bills/BillReviewForm.jsx`
+
+### Files modified
+
+- `backend/.../documents/Bill.java` — `currentCharges`, `previousBalance`, `extractionRequestedAt`, `extractedAt`, `extractionError`
+- `backend/.../documents/BillRepository.java` — overlapping-period query
+- `backend/.../documents/BillService.java` — responses via `BillResponseMapper`; starts reading after upload
+- `backend/.../documents/web/BillDtos.java` — review fields in `BillResponse`; `BillFieldsRequest`, `FieldReview`, `ReviewIssue`, `ExtractionState`
+- `backend/.../billing/InvoiceLineRepository.java` — `existsByBillIdAndVoidedFalse`
+- `backend/.../common/error/InvalidRequestException.java`, `GlobalExceptionHandler.java` — several field errors in one 400
+- `backend/.../extraction/package-info.java` — package description
+- `backend/src/main/resources/application.yml` — `app.openai.*`, `app.bills.*`
+- `backend/src/test/resources/application-test.yml` — fake OpenAI settings, auto-extract off, readings inline
+- `backend/.env.example` — optional `OPENAI_MODEL`, `APP_BILLS_AUTO_EXTRACT`
+- `frontend/src/hooks/useApiData.js` — silent reload, `setData`, `useInterval`
+- `frontend/src/components/ui/Field.jsx` — optional `id` and `inputClassName`
+- `frontend/src/lib/api.js` — review endpoints
+- `frontend/src/lib/format.js` — `billBadge` (status + reading state)
+- `frontend/src/pages/bills/BillsPage.jsx` — badges, amounts and periods, quiet refresh while reading
+- `frontend/src/pages/bills/BillDetailPage.jsx` — review screen
+- `supabase/migrations/README.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`
+
+### What was verified in the scaffolding environment
+
+- `202610290001_bill_extraction_fields.sql` applied after the earlier migrations on PostgreSQL 16;
+  verifying without current charges, or with $0, is rejected.
+- Frontend production build; bills list and review screen (needs review, reading, failed, verified;
+  desktop and phone widths) rendered against a stubbed API.
+- Not verified there: `mvn test` (no Maven Central access) and a live OpenAI call — run locally.
+
+### Deferred
+
+- Splitting verified bills into invoices → Phase 5
+- Multi-service bills (e.g. water + wastewater as separate lines) → read as one total for now
+
+### Supabase migrations applied
+
+- [x] `202610010001_initial_schema.sql`
+- [x] `202610200001_lease_no_overlap.sql`
+- [ ] `202610290001_bill_extraction_fields.sql`

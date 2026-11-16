@@ -29,4 +29,14 @@ public final class UtilityAccountDtos {
             String providerName,
             String accountNumber) {
     }
+
+    /** A utility account with its property's name, for pickers that span properties. */
+    public record UtilityAccountSummary(
+            UUID id,
+            UUID propertyId,
+            String propertyName,
+            UtilityType utilityType,
+            String providerName,
+            String accountNumber) {
+    }
 }

@@ -50,6 +50,11 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - The landlord absorbs vacant days.
 - Each invoice line is rounded to the cent.
 - Multi-month bills (e.g. quarterly water) are spread across monthly auto-drafts by day overlap.
+- FLAT split amounts are **per bill**, prorated by the lease's days within the bill period
+  (e.g. $50 internet, tenant present 15 of 30 days → $25). A multi-month bill's flat amount is
+  spread across monthly drafts by day overlap, the same as PERCENT. (Decided in Phase 3.)
+- Lease dates stay editable after invoicing. Existing invoices don't change; DRAFT invoices recalculate.
+  (Decided in Phase 3.)
 
 ## Rental setup (decided in Phase 2)
 
@@ -81,10 +86,26 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - `GET /api/properties/{id}` returns the whole property setup (units with leases, utility accounts,
   split rules, per-account percent totals) so the detail screen needs one call.
 
-## Ingestion
+## Ingestion (decided in Phase 3)
 
-- MVP1: UI upload only (PDF / PNG / JPG).
-- Files stored behind a `StorageService` interface; local folder path is configurable.
+- MVP1: UI upload only (PDF / PNG / JPG), one file per request; the UI uploads several one after another.
+- File type is decided by the file's signature (first bytes), never by name or browser Content-Type.
+  The stored `content_type` is the detected one.
+- Limit 10 MB per file (checked in `BillService`; the container multipart limit is 12 MB so users see the clear message).
+- Duplicates: same SHA-256 for the same landlord → 409 with `existingBillId` in the ProblemDetail.
+  Different landlords may upload the same file.
+- Optional utility account at upload; it must belong to the landlord (400 on `utilityAccountId` otherwise).
+- Storage behind `StorageService` (store / open / delete). MVP1 uses `LocalStorageService` under
+  `app.storage.local-root` (default `./storage`, relative to `backend/`).
+- Storage key: `<landlordId>/<yyyy>/<MM>/<billId>.<ext>` (upload month in `app.time-zone`); never the original filename.
+  Keys are validated (safe characters only, no `.`/`..` segments, must stay inside the root).
+- Files are written to a temp file and moved into place, so half-written files never appear.
+- If the database transaction doesn't commit after the file was stored, the file is deleted
+  (transaction synchronization). A deleted bill's file is removed after commit.
+- The original filename is kept for display only (last path part, control characters removed, max 200 chars).
+- `GET /api/bills/{id}/file` streams the file inline with `Cache-Control: no-store, private`.
+  The UI fetches it with the token and shows it from a blob URL.
+- A bill can't be deleted once `VERIFIED` or once it appears on an invoice line.
 
 ## Invoices
 
@@ -97,10 +118,36 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - An invoice is locked once `EMAIL_DRAFTED`; corrections mean void and reissue.
 - Double-billing protection: each `invoice_line` records `bill_id` + covered date range; overlapping ranges for the same bill and unit are blocked unless the earlier invoice is `VOID`.
 
-## Bills
+## Bills: reading and verification (decided in Phase 4)
 
-- Statuses: `UPLOADED` → `EXTRACTED` → `READY` / `NEEDS_REVIEW` → `VERIFIED`.
-- Only `VERIFIED` bills feed invoices.
+- Statuses: `UPLOADED` → `READY` / `NEEDS_REVIEW` → `VERIFIED`. Status is re-evaluated after every reading
+  and every edit. `EXTRACTED` is not used as a resting state. Only `VERIFIED` bills feed invoices.
+- **The split amount is `current_charges`** (this period's charges incl. tax), not `amount_due`, which can
+  include a previous balance or credits. Both are stored, plus `previous_balance`.
+- Reading runs automatically in the background after the upload commits (`app.bills.auto-extract`),
+  two at a time, on a small thread pool. "Read again" / "Read bill" re-runs it and replaces the read fields.
+- Reading state is derived from `extraction_requested_at`, `extracted_at` and `extraction_error`:
+  NOT_STARTED, RUNNING, DONE or FAILED. A reading unfinished after 10 minutes shows as failed.
+  A reading that finishes after a newer request (or after the bill was verified or deleted) is discarded.
+- A failed reading leaves the bill `UPLOADED` with a readable reason; the landlord can retry or type the details in.
+- OpenAI: Responses API over Spring `RestClient` (no SDK). PDFs go as `input_file`, images as `input_image`
+  (base64 data URLs). Strict structured output (`resources/extraction/utility-bill-schema.json`),
+  instructions in `resources/extraction/instructions.md`, `store: false`. Default model `gpt-6-luna`
+  (configurable `OPENAI_MODEL`). Bill contents and the API key are never logged.
+- Review rules (`BillChecks`): period present, ends on/after start, at most 120 days; current charges present
+  and > 0; amount due within $0.05 of current + previous; account number matches the linked account
+  (spaces/dashes ignored); bill type matches the account type; provider names share a distinctive word;
+  no other bill on the same account covers overlapping days; every field the reader was less than
+  85% sure about is flagged until the landlord changes it.
+- Combined confidence = average reader confidence over provider, account number, period start/end and
+  current charges (typed or changed values count as 1.0, missing as 0), minus 15% per failed rule.
+  READY needs no issues and combined confidence ≥ `app.bills.ready-threshold` (0.85).
+- Matching: with no account chosen, a reading links the bill to the landlord's only utility account with the
+  same normalized account number. An account chosen at upload is never changed by a reading;
+  a different number on the bill makes it `NEEDS_REVIEW`.
+- Verify needs utility account, billing period (end ≥ start) and current charges > 0 (all missing fields are
+  reported together), and is blocked when another verified bill on the same account overlaps those days.
+- A verified bill can't be edited or re-read. It can be un-verified only while it isn't on a non-void invoice line.
 
 ## Sending
 
@@ -112,11 +159,6 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - Payments table supports partial payments (amount, date, optional note).
 - `amount pending = invoice total − sum of payments`.
 - **Mark as paid** becomes available when amount pending reaches 0.
-
-## Open questions for later phases
-
-- Phase 5: is a FLAT split amount per month (prorated by days) or per bill? Decide before building the billing engine.
-- Phase 5: editing the dates of a lease that already has invoices is currently allowed; decide whether to lock it.
 
 ## MVP2 backlog
 

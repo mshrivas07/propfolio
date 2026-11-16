@@ -10,7 +10,7 @@ function Wrapper({ id, label, hint, error, children, className = '' }) {
         {label}
       </label>
       {children}
-      {hint && !error && <p className="mt-1 text-xs text-ink-muted">{hint}</p>}
+      {hint && !error && <div className="mt-1 text-xs text-ink-muted">{hint}</div>}
       {error && (
         <p id={`${id}-error`} className="mt-1 text-xs text-danger">
           {error}
@@ -20,9 +20,13 @@ function Wrapper({ id, label, hint, error, children, className = '' }) {
   )
 }
 
-/** Text, email, date or number input with its label and an error under it. */
-export function TextField({ label, hint, error, className, type = 'text', ...props }) {
-  const id = useId()
+/**
+ * Text, email, date or number input with its label and an error under it.
+ * Optional: `id` (to focus it from elsewhere), `inputClassName` (extra classes, e.g. a highlight).
+ */
+export function TextField({ label, hint, error, className, inputClassName = '', id: givenId, type = 'text', ...props }) {
+  const generatedId = useId()
+  const id = givenId ?? generatedId
   return (
     <Wrapper id={id} label={label} hint={hint} error={error} className={className}>
       <input
@@ -30,7 +34,7 @@ export function TextField({ label, hint, error, className, type = 'text', ...pro
         type={type}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={`${inputClass} border-line`}
+        className={`${inputClass} border-line ${inputClassName}`}
         {...props}
       />
     </Wrapper>
@@ -38,15 +42,16 @@ export function TextField({ label, hint, error, className, type = 'text', ...pro
 }
 
 /** Select with its label and an error under it. `options` is [{ value, label }]. */
-export function SelectField({ label, hint, error, className, options, placeholder, ...props }) {
-  const id = useId()
+export function SelectField({ label, hint, error, className, inputClassName = '', id: givenId, options, placeholder, ...props }) {
+  const generatedId = useId()
+  const id = givenId ?? generatedId
   return (
     <Wrapper id={id} label={label} hint={hint} error={error} className={className}>
       <select
         id={id}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={`${inputClass} border-line`}
+        className={`${inputClass} border-line ${inputClassName}`}
         {...props}
       >
         {placeholder && <option value="">{placeholder}</option>}
