@@ -66,14 +66,32 @@ export function formatPeriod(start, end) {
 }
 
 export const invoiceStatusLabels = {
-  OPEN: 'Open',
+  OPEN: 'Collecting',
+  INVOICE_CREATED: 'Invoice created',
   EMAIL_DRAFTED: 'Email drafted',
+  SENT: 'Sent',
   PARTIALLY_PAID: 'Partially paid',
   PAID: 'Paid',
-  VOID: 'Void',
+  ARCHIVED: 'Archived',
+  CANCELLED: 'Cancelled',
 }
 
-const invoiceTones = { OPEN: 'info', EMAIL_DRAFTED: 'neutral', PARTIALLY_PAID: 'attention', PAID: 'success', VOID: 'neutral' }
+const invoiceTones = {
+  OPEN: 'info',
+  INVOICE_CREATED: 'neutral',
+  EMAIL_DRAFTED: 'neutral',
+  SENT: 'attention',
+  PARTIALLY_PAID: 'attention',
+  PAID: 'success',
+  ARCHIVED: 'neutral',
+  CANCELLED: 'danger',
+}
+
+/** "2026-11-15" → today's date in the viewer's time zone, for date inputs. */
+export function todayIso() {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
 
 export function invoiceBadge(invoice) {
   return { label: invoiceStatusLabels[invoice.status] ?? invoice.status, tone: invoiceTones[invoice.status] ?? 'neutral' }

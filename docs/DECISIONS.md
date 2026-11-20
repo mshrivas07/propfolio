@@ -126,8 +126,7 @@ Recorded in Phase 0. Change a decision here first, then in code.
   locked while a number is taken, so concurrent requests never share a number.
 - Nothing goes to Gmail until the user clicks **Create Gmail draft**.
 - No tax in MVP1.
-- Statuses in 5A: `OPEN`, plus the old `EMAIL_DRAFTED`, `PARTIALLY_PAID`, `PAID`, `VOID` until Phase 5B reworks
-  them (OPEN → INVOICE_CREATED → EMAIL_DRAFTED → SENT → PARTIALLY_PAID → PAID → ARCHIVED, plus CANCELLED).
+- Statuses and moves: see "Invoice lifecycle (decided in Phase 5B)".
 - Double-billing protection: each `invoice_line` records `bill_id` + covered date range; overlapping ranges for
   the same bill and unit are blocked unless the line is void.
 
@@ -171,11 +170,45 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - Gmail API creates drafts in the user's account; the user reviews and sends.
 - MVP1 uses a Google Cloud project in testing mode with the owner as test user.
 
-## Payments
+## Invoice lifecycle (decided in Phase 5B; replaces the earlier status and payment decisions)
 
-- Payments table supports partial payments (amount, date, optional note).
-- `amount pending = invoice total − sum of payments`.
-- **Mark as paid** becomes available when amount pending reaches 0.
+- `OPEN` → `INVOICE_CREATED` → `EMAIL_DRAFTED` → `SENT` → `PARTIALLY_PAID` → `PAID` → `ARCHIVED`, plus
+  `CANCELLED` for mistakes. `SENT` means nothing received yet (there is no UNPAID status). Each step records
+  when it happened (`invoice_created_at`, `email_drafted_at`, `sent_at`, `cancelled_at`, `archived_at`).
+- All moves are checked in one place (`InvoiceRules`) and made through `InvoiceLifecycleService`, with the
+  invoice row locked. Responses list the moves allowed now, so the screen doesn't repeat the rules.
+- **Create invoice** (OPEN with at least one charge): charges and total are frozen. Later charges start a new
+  OPEN invoice. The invoice counts toward the tenant's outstanding balance from here on.
+- **Create Gmail draft** (Phase 6): from `INVOICE_CREATED` or `EMAIL_DRAFTED`, repeatable (replaces the previous
+  draft). **Mark as sent**: only from `EMAIL_DRAFTED`. No drafting after `SENT`.
+- **Delete** exists only before `SENT` and means undo "Create invoice": the invoice returns to `OPEN` with the
+  same number; charges collected meanwhile on the newer OPEN invoice merge back into it and the newer one is
+  removed (its number stays unused — the one case of a gap).
+- From `SENT` on there is no Delete. **Cancel invoice** (mistakes only, with confirmation) is allowed from `SENT`
+  — which includes a PARTIALLY_PAID invoice whose payments have all been deleted. It becomes `CANCELLED`, is kept
+  for the record, its charges are voided and recalculated onto the lease's OPEN invoice.
+- **Archive** only from `PAID`; hidden from the default list ("Show archived" brings it back). **Unarchive**
+  returns it to `PAID`.
+- Due date: creation + 15 days; editable while `OPEN` or `INVOICE_CREATED` (before the email draft uses it).
+- An invoice's total is its own charges. The invoice and PDF also show the lease's other unpaid invoices as
+  information ("Still unpaid … · Total owing"); they're not part of its total.
+
+## Payments (decided in Phase 5B)
+
+- A payment belongs to one invoice: amount (> 0, 2 decimals), date received (not in the future), optional note.
+- Allowed only while the invoice is `SENT` or `PARTIALLY_PAID`. Received < total → `PARTIALLY_PAID`;
+  received = total → `PAID`. A payment above what's still owed is rejected (overpayment / credit is MVP2).
+- Deleting a payment (while `PARTIALLY_PAID` or `PAID`) recalculates the status; back to `SENT` when nothing is
+  left. To change an archived invoice's payments, unarchive it first.
+- Outstanding per lease/tenant = Σ (total − received) over invoices other than `OPEN` and `CANCELLED`.
+  "On next invoice" = the OPEN invoice's total (collecting, not owed yet).
+
+## Invoice PDF (decided in Phase 5B)
+
+- Apache PDFBox 3, built-in Helvetica, US Letter, shown inline (`GET /api/invoices/{id}/pdf`).
+- Contents: landlord name/email, tenant name and emails, unit/property and address, invoice number, invoice date,
+  period, due date, one line per charge (provider, bill period, days, share, amount), total, payments received
+  and amount due, other unpaid invoices with the total owing. Characters Helvetica can't print show as "?".
 
 ## MVP2 backlog
 
@@ -184,6 +217,8 @@ Recorded in Phase 0. Change a decision here first, then in code.
 - Cloud storage: Supabase Storage first, then Cloudflare R2
 - SaaS onboarding (plans, billing, admin)
 - Google app verification for Gmail scopes (required before other landlords can use drafts)
+- Overpayments and tenant credit carried to the next invoice
+- Equal payment plan yearly settlement (true-up) split by each tenant's days
 - Row Level Security policies as defense in depth
 
 ## Spring Boot version (decided 2026-09-30)

@@ -14,7 +14,7 @@ import jakarta.persistence.Table;
 import com.propfolio.common.persistence.LandlordOwnedEntity;
 
 /**
- * An invoice to one tenant (via their lease) for a date range.
+ * An invoice to one tenant (via their lease). Status rules: {@link InvoiceRules}.
  */
 @Entity
 @Table(name = "invoice")
@@ -53,11 +53,17 @@ public class Invoice extends LandlordOwnedEntity {
     @Column(name = "email_drafted_at")
     private Instant emailDraftedAt;
 
-    @Column(name = "paid_at")
-    private Instant paidAt;
+    @Column(name = "invoice_created_at")
+    private Instant invoiceCreatedAt;
 
-    @Column(name = "voided_at")
-    private Instant voidedAt;
+    @Column(name = "sent_at")
+    private Instant sentAt;
+
+    @Column(name = "cancelled_at")
+    private Instant cancelledAt;
+
+    @Column(name = "archived_at")
+    private Instant archivedAt;
 
     protected Invoice() {
         // for JPA
@@ -152,19 +158,35 @@ public class Invoice extends LandlordOwnedEntity {
         this.emailDraftedAt = emailDraftedAt;
     }
 
-    public Instant getPaidAt() {
-        return paidAt;
+    public Instant getInvoiceCreatedAt() {
+        return invoiceCreatedAt;
     }
 
-    public void setPaidAt(Instant paidAt) {
-        this.paidAt = paidAt;
+    public void setInvoiceCreatedAt(Instant invoiceCreatedAt) {
+        this.invoiceCreatedAt = invoiceCreatedAt;
     }
 
-    public Instant getVoidedAt() {
-        return voidedAt;
+    public Instant getSentAt() {
+        return sentAt;
     }
 
-    public void setVoidedAt(Instant voidedAt) {
-        this.voidedAt = voidedAt;
+    public void setSentAt(Instant sentAt) {
+        this.sentAt = sentAt;
+    }
+
+    public Instant getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public void setCancelledAt(Instant cancelledAt) {
+        this.cancelledAt = cancelledAt;
+    }
+
+    public Instant getArchivedAt() {
+        return archivedAt;
+    }
+
+    public void setArchivedAt(Instant archivedAt) {
+        this.archivedAt = archivedAt;
     }
 }

@@ -1,4 +1,5 @@
 /**
- * Payment recording (including partial payments) and paid status. Built in Phase 6.
+ * Payments against invoices: full or partial, one invoice each (Phase 5B). Status changes go through
+ * {@link com.propfolio.billing.InvoiceLifecycleService}.
  */
 package com.propfolio.payments;

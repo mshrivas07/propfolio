@@ -135,15 +135,26 @@ export const unverifyBill = (id) => apiPost(`/api/bills/${id}/unverify`)
 
 /** The original file as a Blob (fetched with the token, so it can't be a plain link). */
 // Invoices
-export function listInvoices({ status, propertyId, tenantId } = {}) {
+export function listInvoices({ status, propertyId, tenantId, includeArchived } = {}) {
   const params = new URLSearchParams()
   if (status) params.set('status', status)
   if (propertyId) params.set('propertyId', propertyId)
   if (tenantId) params.set('tenantId', tenantId)
+  if (includeArchived) params.set('includeArchived', 'true')
   const query = params.toString()
   return apiGet(`/api/invoices${query ? `?${query}` : ''}`)
 }
 export const getInvoice = (id) => apiGet(`/api/invoices/${id}`)
 export const updateInvoiceDueDate = (id, dueDate) => apiPut(`/api/invoices/${id}/due-date`, { dueDate })
+export const createInvoice = (id) => apiPost(`/api/invoices/${id}/create`)
+/** Before SENT only: undo "Create invoice". */
+export const deleteInvoice = (id) => apiDelete(`/api/invoices/${id}`)
+export const cancelInvoice = (id) => apiPost(`/api/invoices/${id}/cancel`)
+export const archiveInvoice = (id) => apiPost(`/api/invoices/${id}/archive`)
+export const unarchiveInvoice = (id) => apiPost(`/api/invoices/${id}/unarchive`)
+export const fetchInvoicePdf = (id) => request('GET', `/api/invoices/${id}/pdf`, undefined, { responseType: 'blob' })
+export const recordPayment = (invoiceId, body) => apiPost(`/api/invoices/${invoiceId}/payments`, body)
+export const deletePayment = (id) => apiDelete(`/api/payments/${id}`)
+export const listTenantBalances = () => apiGet('/api/balances/tenants')
 
 export const fetchBillFile = (id) => request('GET', `/api/bills/${id}/file`, undefined, { responseType: 'blob' })

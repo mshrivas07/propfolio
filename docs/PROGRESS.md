@@ -476,5 +476,91 @@ Frontend (`frontend/src/pages/invoices/`)
 
 ### Supabase migrations applied
 
-- [ ] `202611150001_charges_and_open_invoices.sql` — run before starting the backend
+- [x] `202611150001_charges_and_open_invoices.sql`
+
+## Phase 5B — Invoice lifecycle and payments ✅
+
+Create invoice, Delete (undo before sent), Cancel (mistakes after sent), payments with partial/paid status,
+Archive, tenant balances and the invoice PDF. The Gmail steps (draft, mark as sent) are wired into the same
+lifecycle service and arrive in Phase 6; their buttons show disabled until then.
+
+### API
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/invoices?status=&propertyId=&tenantId=&includeArchived=` | List (archived hidden by default) |
+| GET | `/api/invoices/{id}` | Invoice with charges, payments, allowed actions, other unpaid invoices, total owing |
+| POST | `/api/invoices/{id}/create` | Create invoice (OPEN → INVOICE_CREATED) |
+| DELETE | `/api/invoices/{id}` | Undo "Create invoice" (before SENT only) |
+| POST | `/api/invoices/{id}/cancel` | Cancel (SENT, no payments) |
+| POST | `/api/invoices/{id}/archive`, `/unarchive` | Archive (PAID) / back to PAID |
+| PUT | `/api/invoices/{id}/due-date` | Due date (OPEN or INVOICE_CREATED) |
+| GET | `/api/invoices/{id}/pdf` | Invoice PDF, inline |
+| POST | `/api/invoices/{id}/payments` | Record a payment (SENT / PARTIALLY_PAID; not above what's owed) |
+| DELETE | `/api/payments/{id}` | Delete a payment (status recalculated) |
+| GET | `/api/balances/tenants` | Outstanding, unpaid invoices and next invoice per tenant |
+
+Refused moves are 409 with a plain explanation; payment field problems are 400 with field errors.
+
+### Files created
+
+Database
+- `supabase/migrations/202611160001_invoice_lifecycle_and_payments.sql`
+
+Backend — main (`backend/src/main/java/com/propfolio/`)
+- `billing/InvoiceAction.java`, `InvoiceRules.java` — the allowed-moves table
+- `billing/InvoiceLifecycleService.java` — create, undo, draft/sent (for Phase 6), cancel, archive, unarchive
+- `billing/BalanceService.java` — outstanding / unpaid / next invoice per tenant
+- `billing/InvoicePdfService.java` — the PDF
+- `payments/PaymentService.java`, `payments/web/PaymentController.java`
+
+Backend — test (`backend/src/test/java/com/propfolio/billing/`)
+- `InvoiceRulesTest.java` — every status's allowed moves; status from amount received
+- `InvoiceLifecycleFlowTest.java` — gas $20 + electricity $30 + water $10 → $60 → $35 partially paid → $25 paid →
+  archive; payment above what's owed / before sent / dated in the future rejected; deleting a payment; undo
+  create keeps the number and merges newer charges; cancel blocked with payments and frees charges onto the OPEN
+  invoice; archive only from paid; outstanding across two invoices and "still unpaid" on the invoice; PDF;
+  landlord isolation
+
+Frontend (`frontend/src/`)
+- (rewritten) `pages/invoices/InvoicesPage.jsx` — "Next invoice (collecting)" rows with Create invoice; created
+  invoices with Manage / Delete (before sent) and Show archived
+- (rewritten) `pages/invoices/InvoiceDetailPage.jsx` — the Manage page: status buttons, disabled Gmail buttons,
+  payments, Cancel link, other unpaid, PDF download and preview
+
+### Files modified
+
+- `backend/pom.xml` — `org.apache.pdfbox:pdfbox` 3.0.5
+- `backend/.../billing/InvoiceStatus.java` — the 5B statuses
+- `backend/.../billing/Invoice.java` — `invoiceCreatedAt`, `sentAt`, `cancelledAt`, `archivedAt` (no `paidAt` / `voidedAt`)
+- `backend/.../billing/InvoiceRepository.java` — locked lookup; invoices of a lease
+- `backend/.../billing/InvoiceQueryService.java` — received/remaining, allowed actions, payments, other unpaid,
+  archived filter; due date rule via `InvoiceRules`
+- `backend/.../billing/web/InvoiceDtos.java`, `web/InvoiceController.java` — new fields and endpoints
+- `backend/.../payments/PaymentRepository.java`, `package-info.java`
+- `frontend/src/lib/api.js`, `lib/format.js` — lifecycle calls, PDF, payments, balances; status labels
+- `frontend/src/pages/tenants/TenantsPage.jsx` — outstanding, unpaid invoices, on next invoice
+- `supabase/migrations/README.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`
+
+### What was verified in the scaffolding environment
+
+- Migration applied after the earlier ones on PostgreSQL 16; old VOID / PAID / EMAIL_DRAFTED rows carried over
+  (VOID → CANCELLED with its time); a created invoice without `invoice_created_at`, a SENT one without `sent_at`,
+  a zero payment and a note over 500 characters are rejected.
+- PDF layout rendered (one page; 30 charges flowing onto a second page; empty invoice) against PDFBox 2.0.24 with
+  only the font call swapped.
+- Frontend production build; invoices list, Manage page (collecting, created, partially paid with an
+  over-payment error, paid, cancelled), Create invoice click, PDF preview and tenant balances rendered against a
+  stubbed API.
+- Not verified there: `mvn test` (no Maven Central access) — run locally.
+
+### Deferred
+
+- Create Gmail draft, Mark as sent (buttons disabled) → Phase 6
+- Overpayment / credit, equal payment plan yearly settlement → MVP2 backlog
+
+### Supabase migrations applied
+
+- [x] `202611150001_charges_and_open_invoices.sql`
+- [ ] `202611160001_invoice_lifecycle_and_payments.sql` — run before starting the backend
 
